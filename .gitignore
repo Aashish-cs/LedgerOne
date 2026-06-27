@@ -1,0 +1,16 @@
+.DS_Store
+.env
+.env.*
+!.env.example
+
+node_modules/
+dist/
+dist-ssr/
+
+target/
+build/
+logs/
+*.log
+
+.idea/
+.vscode/
