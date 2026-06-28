@@ -164,6 +164,15 @@ export interface WatchlistItem {
   createdAt: string
 }
 
+export interface AppNotification {
+  id: string
+  type: 'ORDER_FILLED' | 'ORDER_REJECTED' | 'RISK_ALERT' | 'ACCOUNT_STATUS'
+  title: string
+  message: string
+  read: boolean
+  createdAt: string
+}
+
 export interface SystemStatus {
   application: string
   environment: string

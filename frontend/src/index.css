@@ -58,3 +58,137 @@ select:focus-visible {
   fill: #8b98a7;
   font-size: 12px;
 }
+
+.input {
+  width: 100%;
+  min-height: 2.75rem;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 0.375rem;
+  background: #11161b;
+  color: #ffffff;
+  padding: 0.625rem 0.75rem;
+}
+
+.input::placeholder {
+  color: #6f7c8d;
+}
+
+.primary-button,
+.secondary-button,
+.icon-button,
+.table-action {
+  border: 0;
+  cursor: pointer;
+  transition:
+    background-color 160ms ease,
+    border-color 160ms ease,
+    color 160ms ease,
+    opacity 160ms ease;
+}
+
+.primary-button {
+  display: inline-flex;
+  min-height: 2.75rem;
+  width: 100%;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  border-radius: 0.375rem;
+  background: #47c7a1;
+  color: #0d1114;
+  font-weight: 700;
+}
+
+.primary-button:hover {
+  background: #62d7b4;
+}
+
+.secondary-button {
+  display: inline-flex;
+  min-height: 2.75rem;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  border: 1px solid rgba(71, 199, 161, 0.35);
+  border-radius: 0.375rem;
+  background: rgba(71, 199, 161, 0.1);
+  color: #bdf5e2;
+  padding: 0 0.9rem;
+  font-weight: 650;
+}
+
+.secondary-button:hover {
+  background: rgba(71, 199, 161, 0.16);
+}
+
+.icon-button {
+  display: inline-flex;
+  height: 2.5rem;
+  width: 2.5rem;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 0.375rem;
+  background: #171d23;
+  color: #d6dde7;
+}
+
+.icon-button:hover {
+  background: rgba(255, 255, 255, 0.06);
+  color: #ffffff;
+}
+
+.table-action {
+  display: inline-flex;
+  min-height: 2rem;
+  align-items: center;
+  justify-content: center;
+  gap: 0.35rem;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 0.375rem;
+  background: #11161b;
+  color: #d6dde7;
+  padding: 0 0.65rem;
+  font-size: 0.8125rem;
+  white-space: nowrap;
+}
+
+.table-action:hover {
+  background: rgba(255, 255, 255, 0.06);
+  color: #ffffff;
+}
+
+.primary-button:disabled,
+.secondary-button:disabled,
+.icon-button:disabled,
+.table-action:disabled {
+  cursor: not-allowed;
+  opacity: 0.48;
+}
+
+.data-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.875rem;
+}
+
+.data-table th {
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+  color: #8b98a7;
+  font-weight: 600;
+  padding: 0.75rem;
+  text-align: left;
+  white-space: nowrap;
+}
+
+.data-table td {
+  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+  color: #c8d0dc;
+  padding: 0.8rem 0.75rem;
+  vertical-align: middle;
+  white-space: nowrap;
+}
+
+.data-table tbody tr:hover {
+  background: rgba(255, 255, 255, 0.025);
+}

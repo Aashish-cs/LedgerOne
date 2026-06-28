@@ -1,5 +1,6 @@
 import type {
   AdminUser,
+  AppNotification,
   AuditLog,
   AuthResponse,
   Dashboard,
@@ -214,6 +215,33 @@ export const demoWatchlist: WatchlistItem[] = [
   { id: 'w-meta', stock: demoStocks[5], createdAt: daysAgo(6) },
   { id: 'w-googl', stock: demoStocks[6], createdAt: daysAgo(5) },
   { id: 'w-nvda', stock: demoStocks[2], createdAt: daysAgo(2) },
+]
+
+export const demoNotifications: AppNotification[] = [
+  {
+    id: 'n-order-filled',
+    type: 'ORDER_FILLED',
+    title: 'Order filled',
+    message: 'AAPL market order filled at $178.50',
+    read: false,
+    createdAt: daysAgo(0.08),
+  },
+  {
+    id: 'n-risk',
+    type: 'RISK_ALERT',
+    title: 'Risk alert',
+    message: 'Technology allocation is elevated compared with internal model thresholds',
+    read: false,
+    createdAt: daysAgo(0.5),
+  },
+  {
+    id: 'n-account',
+    type: 'ACCOUNT_STATUS',
+    title: 'Account active',
+    message: 'Ashish Mishra profile is active and ready for portfolio operations',
+    read: true,
+    createdAt: daysAgo(1.5),
+  },
 ]
 
 export const demoAdminUsers: PageResponse<AdminUser> = {

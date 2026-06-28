@@ -32,11 +32,13 @@ const demoLogin = (email: string, password: string) => {
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<UserPrincipal | null>(readUser)
+  const isDemoSession = localStorage.getItem('ledgerone.accessToken') === 'demo-access-token'
 
   const value = useMemo<AuthContextValue>(
     () => ({
       user,
       isAdmin: Boolean(user?.roles.includes('ADMIN')),
+      isDemoSession,
       login: async (email, password) => {
         let auth: AuthResponse
         try {
@@ -68,7 +70,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         setUser(null)
       },
     }),
-    [user],
+    [isDemoSession, user],
   )
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>

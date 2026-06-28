@@ -4,8 +4,10 @@ import {
   ArrowDownLeft,
   ArrowUpRight,
   Bell,
+  Ban,
   BriefcaseBusiness,
   Building2,
+  CheckCircle2,
   CircleDollarSign,
   ClipboardList,
   Eye,
@@ -17,10 +19,14 @@ import {
   LogOut,
   PieChart as PieChartIcon,
   Plus,
+  Pencil,
+  RotateCcw,
   Search,
   ShieldCheck,
+  Trash2,
   TrendingUp,
   WalletCards,
+  X,
 } from 'lucide-react'
 import { useMemo, useState } from 'react'
 import { useForm } from 'react-hook-form'
@@ -55,6 +61,7 @@ import {
   demoAdminUsers,
   demoAuditLogs,
   demoDashboard,
+  demoNotifications,
   demoOrders,
   demoPortfolio,
   demoStocks,
@@ -63,6 +70,7 @@ import {
 } from './data/demo'
 import type {
   AdminUser,
+  AppNotification,
   Dashboard,
   Holding,
   Order,
@@ -73,6 +81,7 @@ import type {
   Portfolio,
   RiskAlert,
   Stock,
+  WatchlistItem,
 } from './types'
 
 const allocationColors = ['#47c7a1', '#e7b75f', '#6fb7d6', '#c17664', '#8abf72', '#b9a1e6']
@@ -98,6 +107,55 @@ function formatDate(value: string | undefined) {
 
 function classNames(...values: Array<string | false | undefined>) {
   return values.filter(Boolean).join(' ')
+}
+
+function demoPortfolioFromName(name: string): Portfolio {
+  const createdAt = new Date().toISOString()
+  return {
+    ...demoPortfolio,
+    id: `demo-portfolio-${Date.now()}`,
+    name,
+    cashBalance: 50_000,
+    marketValue: 0,
+    totalValue: 50_000,
+    realizedProfit: 0,
+    unrealizedProfit: 0,
+    holdings: [],
+    allocation: [],
+    createdAt,
+    updatedAt: createdAt,
+  }
+}
+
+function demoOrderFromRequest(request: OrderRequest, stocks: Stock[], portfolioName: string): Order {
+  const stock = stocks.find((item) => item.symbol === request.symbol) ?? demoStocks[0]
+  const limitPrice = request.type === 'LIMIT' ? request.limitPrice : undefined
+  const canFillLimit =
+    request.type === 'LIMIT' && limitPrice !== undefined
+      ? request.side === 'BUY'
+        ? limitPrice >= stock.lastPrice
+        : limitPrice <= stock.lastPrice
+      : true
+  const status: OrderStatus = request.type === 'MARKET' || canFillLimit ? 'FILLED' : 'PENDING'
+  const executionPrice = status === 'FILLED' ? stock.lastPrice : undefined
+  const gross = (executionPrice ?? limitPrice ?? stock.lastPrice) * Number(request.quantity)
+  const fees = Math.max(1, Math.min(50, gross * 0.001))
+  return {
+    id: `demo-order-${Date.now()}`,
+    clientOrderId: request.clientOrderId,
+    portfolioId: request.portfolioId,
+    portfolioName,
+    symbol: request.symbol,
+    side: request.side,
+    type: request.type,
+    status,
+    quantity: Number(request.quantity),
+    limitPrice,
+    executionPrice,
+    fees,
+    createdAt: new Date().toISOString(),
+    filledAt: status === 'FILLED' ? new Date().toISOString() : undefined,
+  }
 }
 
 function App() {
@@ -253,13 +311,22 @@ function LoginPage() {
 }
 
 function Shell() {
-  const { user, isAdmin, logout } = useAuth()
+  const { user, isAdmin, isDemoSession, logout } = useAuth()
+  const [notificationsOpen, setNotificationsOpen] = useState(false)
   const systemQuery = useQuery({
     queryKey: ['system-status'],
     queryFn: api.systemStatus,
     retry: false,
     refetchInterval: 15_000,
   })
+  const notificationsQuery = useQuery({
+    queryKey: ['notifications'],
+    queryFn: api.notifications,
+    placeholderData: demoNotifications,
+    enabled: Boolean(user),
+  })
+  const notifications = isDemoSession ? demoNotifications : (notificationsQuery.data ?? demoNotifications)
+  const unreadNotifications = notifications.filter((notification) => !notification.read).length
   const navItems = [
     { to: '/', label: 'Overview', icon: LayoutDashboard },
     { to: '/portfolios', label: 'Portfolios', icon: BriefcaseBusiness },
@@ -303,14 +370,27 @@ function Shell() {
               <p className="truncate text-sm text-slate-400">Signed in as {user?.email}</p>
               <p className="truncate text-lg font-semibold text-white">{user?.fullName}</p>
             </div>
-            <div className="flex items-center gap-2">
-              <ApiModeBadge online={systemQuery.isSuccess} compact />
-              <button className="icon-button" aria-label="Notifications">
+            <div className="relative flex items-center gap-2">
+              <ApiModeBadge online={systemQuery.isSuccess && !isDemoSession} compact />
+              <button
+                className="icon-button relative"
+                aria-label="Notifications"
+                aria-expanded={notificationsOpen}
+                onClick={() => setNotificationsOpen((open) => !open)}
+              >
                 <Bell size={18} />
+                {unreadNotifications > 0 && (
+                  <span className="absolute -right-1 -top-1 flex h-4 min-w-4 items-center justify-center rounded-full bg-amber-300 px-1 text-[10px] font-semibold text-[#0d1114]">
+                    {unreadNotifications}
+                  </span>
+                )}
               </button>
               <button className="icon-button" aria-label="Sign out" onClick={() => void logout()}>
                 <LogOut size={18} />
               </button>
+              {notificationsOpen && (
+                <NotificationsMenu notifications={notifications} onClose={() => setNotificationsOpen(false)} />
+              )}
             </div>
           </div>
           <nav className="flex gap-1 overflow-x-auto border-t border-white/10 px-4 py-2 lg:hidden">
@@ -404,17 +484,94 @@ function DashboardPage() {
   )
 }
 
+function NotificationsMenu({ notifications, onClose }: { notifications: AppNotification[]; onClose: () => void }) {
+  return (
+    <div className="absolute right-0 top-12 z-30 w-[min(24rem,calc(100vw-2rem))] rounded border border-white/10 bg-[#171d23] shadow-2xl shadow-black/40">
+      <div className="flex items-center justify-between border-b border-white/10 px-4 py-3">
+        <div>
+          <p className="text-sm font-semibold text-white">Activity feed</p>
+          <p className="text-xs text-slate-500">{notifications.filter((notification) => !notification.read).length} unread updates</p>
+        </div>
+        <button className="icon-button h-8 w-8" aria-label="Close notifications" onClick={onClose}>
+          <X size={16} />
+        </button>
+      </div>
+      <div className="max-h-96 overflow-y-auto p-2 scrollbar-thin">
+        {notifications.map((notification) => (
+          <div key={notification.id} className="rounded border border-white/10 bg-[#11161b] p-3">
+            <div className="flex items-start justify-between gap-3">
+              <div>
+                <p className="font-medium text-white">{notification.title}</p>
+                <p className="mt-1 text-sm leading-5 text-slate-400">{notification.message}</p>
+              </div>
+              {!notification.read && <span className="mt-1 h-2.5 w-2.5 shrink-0 rounded-full bg-amber-300" aria-label="Unread" />}
+            </div>
+            <p className="mt-2 text-xs text-slate-500">{formatDate(notification.createdAt)}</p>
+          </div>
+        ))}
+      </div>
+    </div>
+  )
+}
+
 function PortfolioPage() {
+  const { isDemoSession } = useAuth()
   const queryClient = useQueryClient()
+  const [demoPortfolios, setDemoPortfolios] = useState<Portfolio[]>([demoPortfolio])
+  const [message, setMessage] = useState('')
   const portfoliosQuery = useQuery({ queryKey: ['portfolios'], queryFn: api.portfolios, placeholderData: [demoPortfolio] })
-  const portfolios = portfoliosQuery.data ?? [demoPortfolio]
+  const portfolios = isDemoSession ? demoPortfolios : (portfoliosQuery.data ?? demoPortfolios)
   const { register, handleSubmit, reset } = useForm({ defaultValues: { name: '' } })
   const createMutation = useMutation({
-    mutationFn: ({ name }: { name: string }) => api.createPortfolio(name),
-    onSuccess: () => {
+    mutationFn: async ({ name }: { name: string }) => {
+      if (isDemoSession) {
+        const created = demoPortfolioFromName(name)
+        setDemoPortfolios((current) => [created, ...current])
+        return created
+      }
+      return api.createPortfolio(name)
+    },
+    onSuccess: (portfolio) => {
       reset()
+      setMessage(`Portfolio "${portfolio.name}" is ready`)
       void queryClient.invalidateQueries({ queryKey: ['portfolios'] })
     },
+    onError: () => setMessage('Portfolio request failed. Check API access or try demo mode.'),
+  })
+  const renameMutation = useMutation({
+    mutationFn: async ({ id, name }: { id: string; name: string }) => {
+      if (isDemoSession) {
+        setDemoPortfolios((current) =>
+          current.map((portfolio) => (portfolio.id === id ? { ...portfolio, name, updatedAt: new Date().toISOString() } : portfolio)),
+        )
+        return { id, name }
+      }
+      await api.renamePortfolio(id, name)
+      return { id, name }
+    },
+    onSuccess: ({ name }) => {
+      setMessage(`Portfolio renamed to "${name}"`)
+      void queryClient.invalidateQueries({ queryKey: ['portfolios'] })
+    },
+    onError: () => setMessage('Rename failed. The API may still be blocked by CORS.'),
+  })
+  const deleteMutation = useMutation({
+    mutationFn: async (portfolio: Portfolio) => {
+      if (portfolio.holdings.length > 0) {
+        throw new Error('Liquidate holdings before deleting a portfolio')
+      }
+      if (isDemoSession) {
+        setDemoPortfolios((current) => current.filter((item) => item.id !== portfolio.id))
+        return portfolio
+      }
+      await api.deletePortfolio(portfolio.id)
+      return portfolio
+    },
+    onSuccess: (portfolio) => {
+      setMessage(`Portfolio "${portfolio.name}" deleted`)
+      void queryClient.invalidateQueries({ queryKey: ['portfolios'] })
+    },
+    onError: (error) => setMessage(error instanceof Error ? error.message : 'Delete failed'),
   })
   return (
     <Page title="Portfolios" eyebrow="Accounts, holdings, cost basis">
@@ -428,11 +585,18 @@ function PortfolioPage() {
               <Plus size={18} />
               Create
             </button>
+            {message && <ActionNotice tone={message.includes('failed') || message.includes('Liquidate') ? 'warning' : 'success'} message={message} />}
           </form>
         </Panel>
         <div className="space-y-4">
           {portfolios.map((portfolio) => (
-            <PortfolioDetail key={portfolio.id} portfolio={portfolio} />
+            <PortfolioDetail
+              key={portfolio.id}
+              portfolio={portfolio}
+              onRename={(name) => renameMutation.mutate({ id: portfolio.id, name })}
+              onDelete={() => deleteMutation.mutate(portfolio)}
+              busy={renameMutation.isPending || deleteMutation.isPending}
+            />
           ))}
         </div>
       </div>
@@ -440,9 +604,55 @@ function PortfolioPage() {
   )
 }
 
-function PortfolioDetail({ portfolio }: { portfolio: Portfolio }) {
+function PortfolioDetail({
+  portfolio,
+  onRename,
+  onDelete,
+  busy,
+}: {
+  portfolio: Portfolio
+  onRename: (name: string) => void
+  onDelete: () => void
+  busy: boolean
+}) {
+  const [editing, setEditing] = useState(false)
+  const [name, setName] = useState(portfolio.name)
   return (
-    <Panel title={portfolio.name} icon={WalletCards} action={<span className="text-sm text-slate-400">{currency(portfolio.totalValue)}</span>}>
+    <Panel
+      title={portfolio.name}
+      icon={WalletCards}
+      action={
+        <div className="flex items-center gap-2">
+          <span className="hidden text-sm text-slate-400 sm:inline">{currency(portfolio.totalValue)}</span>
+          <button className="icon-button h-9 w-9" aria-label={`Rename ${portfolio.name}`} onClick={() => setEditing((value) => !value)}>
+            <Pencil size={16} />
+          </button>
+          <button className="icon-button h-9 w-9" aria-label={`Delete ${portfolio.name}`} disabled={busy} onClick={onDelete}>
+            <Trash2 size={16} />
+          </button>
+        </div>
+      }
+    >
+      {editing && (
+        <form
+          className="mb-4 flex flex-col gap-2 sm:flex-row"
+          onSubmit={(event) => {
+            event.preventDefault()
+            onRename(name)
+            setEditing(false)
+          }}
+        >
+          <input
+            aria-label={`New name for ${portfolio.name}`}
+            className="input min-w-0 flex-1"
+            value={name}
+            onChange={(event) => setName(event.target.value)}
+          />
+          <button className="secondary-button" type="submit" disabled={busy || name.trim().length < 2}>
+            Save
+          </button>
+        </form>
+      )}
       <div className="mb-4 grid gap-3 sm:grid-cols-3">
         <MiniStat label="Cash" value={currency(portfolio.cashBalance)} />
         <MiniStat label="Market Value" value={currency(portfolio.marketValue)} />
@@ -481,7 +691,10 @@ function PortfolioDetail({ portfolio }: { portfolio: Portfolio }) {
 }
 
 function TradingPage() {
+  const { isDemoSession } = useAuth()
   const queryClient = useQueryClient()
+  const [demoOrdersState, setDemoOrdersState] = useState<Order[]>(demoOrders)
+  const [message, setMessage] = useState('')
   const portfoliosQuery = useQuery({ queryKey: ['portfolios'], queryFn: api.portfolios, placeholderData: [demoPortfolio] })
   const stocksQuery = useQuery({ queryKey: ['stocks'], queryFn: api.stocks, placeholderData: demoStocks })
   const portfolios = portfoliosQuery.data ?? [demoPortfolio]
@@ -492,7 +705,7 @@ function TradingPage() {
     placeholderData: pageOfOrders,
   })
   const stocks = stocksQuery.data ?? demoStocks
-  const orders = ordersQuery.data?.content ?? demoOrders
+  const orders = isDemoSession ? demoOrdersState : (ordersQuery.data?.content ?? demoOrdersState)
   const { register, handleSubmit, watch, reset } = useForm<OrderRequest>({
     defaultValues: {
       portfolioId: selectedPortfolioId,
@@ -505,13 +718,37 @@ function TradingPage() {
   })
   const type = watch('type')
   const mutation = useMutation({
-    mutationFn: api.placeOrder,
-    onSuccess: () => {
+    mutationFn: async (request: OrderRequest) => {
+      if (isDemoSession) {
+        const portfolio = portfolios.find((item) => item.id === request.portfolioId)
+        const order = demoOrderFromRequest(request, stocks, portfolio?.name ?? demoPortfolio.name)
+        setDemoOrdersState((current) => [order, ...current])
+        return order
+      }
+      return api.placeOrder(request)
+    },
+    onSuccess: (order) => {
+      setMessage(`Order ${order.status.toLowerCase()} for ${order.symbol}`)
       reset({ portfolioId: selectedPortfolioId, symbol: 'AAPL', side: 'BUY', type: 'MARKET', quantity: 5, clientOrderId: `web-${Date.now()}` })
       void queryClient.invalidateQueries({ queryKey: ['orders'] })
       void queryClient.invalidateQueries({ queryKey: ['dashboard'] })
       void queryClient.invalidateQueries({ queryKey: ['portfolios'] })
     },
+    onError: () => setMessage('Order request failed. Confirm API/CORS or continue in demo mode.'),
+  })
+  const cancelMutation = useMutation({
+    mutationFn: async (order: Order) => {
+      if (isDemoSession) {
+        setDemoOrdersState((current) => current.map((item) => (item.id === order.id ? { ...item, status: 'CANCELLED' } : item)))
+        return { ...order, status: 'CANCELLED' as OrderStatus }
+      }
+      return api.cancelOrder(order.id)
+    },
+    onSuccess: (order) => {
+      setMessage(`${order.symbol} order cancelled`)
+      void queryClient.invalidateQueries({ queryKey: ['orders'] })
+    },
+    onError: () => setMessage('Only pending orders can be cancelled.'),
   })
   return (
     <Page title="Trading" eyebrow="Simulated equity order management">
@@ -565,27 +802,58 @@ function TradingPage() {
               <ArrowUpRight size={18} />
               Submit order
             </button>
-            {mutation.data && <p className="rounded border border-emerald-400/30 bg-emerald-500/10 px-3 py-2 text-sm text-emerald-200">Order {mutation.data.status.toLowerCase()}</p>}
-            {mutation.error && <p className="rounded border border-red-400/30 bg-red-500/10 px-3 py-2 text-sm text-red-200">Order request failed</p>}
+            {message && <ActionNotice tone={message.includes('failed') || message.includes('Only pending') ? 'warning' : 'success'} message={message} />}
           </form>
         </Panel>
-        <OrdersTable orders={orders} />
+        <OrdersTable orders={orders} onCancel={(order) => cancelMutation.mutate(order)} />
       </div>
     </Page>
   )
 }
 
 function WatchlistPage() {
+  const { isDemoSession } = useAuth()
   const queryClient = useQueryClient()
+  const [demoWatchlistState, setDemoWatchlistState] = useState(demoWatchlist)
+  const [message, setMessage] = useState('')
   const watchlistQuery = useQuery({ queryKey: ['watchlist'], queryFn: api.watchlist, placeholderData: demoWatchlist })
   const stocksQuery = useQuery({ queryKey: ['stocks'], queryFn: api.stocks, placeholderData: demoStocks })
+  const stocks = stocksQuery.data ?? demoStocks
+  const watchlist = isDemoSession ? demoWatchlistState : (watchlistQuery.data ?? demoWatchlistState)
   const { register, handleSubmit, reset } = useForm({ defaultValues: { symbol: 'GOOGL' } })
   const addMutation = useMutation({
-    mutationFn: ({ symbol }: { symbol: string }) => api.addWatchlist(symbol),
-    onSuccess: () => {
+    mutationFn: async ({ symbol }: { symbol: string }) => {
+      if (isDemoSession) {
+        const stock = stocks.find((item) => item.symbol === symbol) ?? demoStocks[0]
+        const existing = demoWatchlistState.find((item) => item.stock.symbol === symbol)
+        if (existing) return existing
+        const item = { id: `demo-watch-${symbol}-${Date.now()}`, stock, createdAt: new Date().toISOString() }
+        setDemoWatchlistState((current) => [item, ...current])
+        return item
+      }
+      return api.addWatchlist(symbol)
+    },
+    onSuccess: (item) => {
       reset({ symbol: 'GOOGL' })
+      setMessage(`${item.stock.symbol} is on the watchlist`)
       void queryClient.invalidateQueries({ queryKey: ['watchlist'] })
     },
+    onError: () => setMessage('Watchlist update failed. Check API/CORS.'),
+  })
+  const removeMutation = useMutation({
+    mutationFn: async (item: WatchlistItem) => {
+      if (isDemoSession) {
+        setDemoWatchlistState((current) => current.filter((entry) => entry.id !== item.id))
+        return item
+      }
+      await api.removeWatchlist(item.id)
+      return item
+    },
+    onSuccess: (item) => {
+      setMessage(`${item.stock.symbol} removed from the watchlist`)
+      void queryClient.invalidateQueries({ queryKey: ['watchlist'] })
+    },
+    onError: () => setMessage('Remove failed. Check API/CORS.'),
   })
   return (
     <Page title="Watchlist" eyebrow="Tracked equities and price movement">
@@ -594,7 +862,7 @@ function WatchlistPage() {
           <form className="space-y-4" onSubmit={handleSubmit((values) => addMutation.mutate(values))}>
             <Field label="Symbol">
               <select className="input" {...register('symbol', { required: true })}>
-                {(stocksQuery.data ?? demoStocks).map((stock) => (
+                {stocks.map((stock) => (
                   <option key={stock.symbol} value={stock.symbol}>
                     {stock.symbol}
                   </option>
@@ -605,19 +873,23 @@ function WatchlistPage() {
               <Plus size={18} />
               Add
             </button>
+            {message && <ActionNotice tone={message.includes('failed') ? 'warning' : 'success'} message={message} />}
           </form>
         </Panel>
         <Panel title="Tracked Prices" icon={Eye}>
           <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
-            {(watchlistQuery.data ?? demoWatchlist).map((item) => (
+            {watchlist.map((item) => (
               <div key={item.id} className="rounded border border-white/10 bg-[#11161b] p-4">
                 <div className="flex items-start justify-between gap-3">
                   <div>
                     <p className="text-lg font-semibold text-white">{item.stock.symbol}</p>
                     <p className="text-sm text-slate-400">{item.stock.companyName}</p>
                   </div>
-                  <span className="rounded bg-emerald-400/10 px-2 py-1 text-xs text-emerald-200">{item.stock.sector}</span>
+                  <button className="icon-button h-8 w-8" aria-label={`Remove ${item.stock.symbol}`} onClick={() => removeMutation.mutate(item)}>
+                    <X size={15} />
+                  </button>
                 </div>
+                <span className="mt-3 inline-flex rounded bg-emerald-400/10 px-2 py-1 text-xs text-emerald-200">{item.stock.sector}</span>
                 <div className="mt-4 flex items-end justify-between">
                   <p className="text-2xl font-semibold text-white">{currency(item.stock.lastPrice)}</p>
                   <MiniTrend />
@@ -632,11 +904,39 @@ function WatchlistPage() {
 }
 
 function AdminPage() {
+  const { isDemoSession } = useAuth()
   const [search, setSearch] = useState('')
+  const [demoUsers, setDemoUsers] = useState(demoAdminUsers.content)
+  const [message, setMessage] = useState('')
+  const queryClient = useQueryClient()
   const usersQuery = useQuery({ queryKey: ['admin-users', search], queryFn: () => api.adminUsers(search), placeholderData: demoAdminUsers })
   const ordersQuery = useQuery({ queryKey: ['admin-orders'], queryFn: api.adminOrders, placeholderData: pageOfOrders })
   const auditQuery = useQuery({ queryKey: ['audit-logs'], queryFn: api.auditLogs, placeholderData: demoAuditLogs })
   const alertsQuery = useQuery({ queryKey: ['risk-alerts'], queryFn: api.riskAlerts, placeholderData: { content: demoDashboard.riskAlerts, page: 0, size: 20, totalElements: 1, totalPages: 1, last: true } })
+  const filteredDemoUsers = demoUsers.filter((user) =>
+    `${user.fullName} ${user.email}`.toLowerCase().includes(search.trim().toLowerCase()),
+  )
+  const users = isDemoSession ? filteredDemoUsers : (usersQuery.data?.content ?? filteredDemoUsers)
+  const accountMutation = useMutation({
+    mutationFn: async ({ user, nextStatus }: { user: AdminUser; nextStatus: AdminUser['status'] }) => {
+      if (isDemoSession) {
+        setDemoUsers((current) => current.map((item) => (item.id === user.id ? { ...item, status: nextStatus, updatedAt: new Date().toISOString() } : item)))
+        return { ...user, status: nextStatus }
+      }
+      if (nextStatus === 'FROZEN') {
+        await api.freezeUser(user.id)
+      } else {
+        await api.unfreezeUser(user.id)
+      }
+      return { ...user, status: nextStatus }
+    },
+    onSuccess: (user) => {
+      setMessage(`${user.fullName} is now ${user.status.toLowerCase()}`)
+      void queryClient.invalidateQueries({ queryKey: ['admin-users'] })
+      void queryClient.invalidateQueries({ queryKey: ['audit-logs'] })
+    },
+    onError: () => setMessage('Account action failed. Confirm API/CORS and admin role.'),
+  })
   return (
     <Page title="Admin Portal" eyebrow="Users, activity, audit, and risk">
       <div className="grid gap-4 xl:grid-cols-[1.1fr_0.9fr]">
@@ -663,10 +963,11 @@ function AdminPage() {
                   <th>Status</th>
                   <th>Roles</th>
                   <th>Created</th>
+                  <th>Action</th>
                 </tr>
               </thead>
               <tbody>
-                {(usersQuery.data?.content ?? demoAdminUsers.content).map((user: AdminUser) => (
+                {users.map((user: AdminUser) => (
                   <tr key={user.id}>
                     <td>
                       <p className="font-medium text-white">{user.fullName}</p>
@@ -677,10 +978,21 @@ function AdminPage() {
                     </td>
                     <td>{user.roles.join(', ')}</td>
                     <td>{formatDate(user.createdAt)}</td>
+                    <td>
+                      <button
+                        className="table-action"
+                        disabled={accountMutation.isPending}
+                        onClick={() => accountMutation.mutate({ user, nextStatus: user.status === 'ACTIVE' ? 'FROZEN' : 'ACTIVE' })}
+                      >
+                        {user.status === 'ACTIVE' ? <Ban size={14} /> : <RotateCcw size={14} />}
+                        {user.status === 'ACTIVE' ? 'Freeze' : 'Activate'}
+                      </button>
+                    </td>
                   </tr>
                 ))}
               </tbody>
             </table>
+            {message && <ActionNotice tone={message.includes('failed') ? 'warning' : 'success'} message={message} className="mt-3" />}
           </div>
         </Panel>
         <RiskAlerts alerts={alertsQuery.data?.content ?? demoDashboard.riskAlerts} />
@@ -800,7 +1112,7 @@ function TransactionsTable({ transactions }: { transactions: Dashboard['recentTr
   )
 }
 
-function OrdersTable({ orders }: { orders: Order[] }) {
+function OrdersTable({ orders, onCancel }: { orders: Order[]; onCancel?: (order: Order) => void }) {
   return (
     <Panel title="Orders" icon={ListFilter}>
       <div className="overflow-x-auto scrollbar-thin">
@@ -814,6 +1126,7 @@ function OrdersTable({ orders }: { orders: Order[] }) {
               <th>Qty</th>
               <th>Execution</th>
               <th>Created</th>
+              {onCancel && <th>Action</th>}
             </tr>
           </thead>
           <tbody>
@@ -828,6 +1141,14 @@ function OrdersTable({ orders }: { orders: Order[] }) {
                 <td>{compactNumber(order.quantity)}</td>
                 <td>{order.executionPrice ? currency(order.executionPrice) : order.limitPrice ? currency(order.limitPrice) : '-'}</td>
                 <td>{formatDate(order.createdAt)}</td>
+                {onCancel && (
+                  <td>
+                    <button className="table-action" disabled={order.status !== 'PENDING'} onClick={() => onCancel(order)}>
+                      <X size={14} />
+                      Cancel
+                    </button>
+                  </td>
+                )}
               </tr>
             ))}
           </tbody>
@@ -898,6 +1219,23 @@ function MiniStat({ label, value, tone }: { label: string; value: string; tone?:
       <p className="text-sm text-slate-400">{label}</p>
       <p className={classNames('mt-1 text-lg font-semibold', tone === 'positive' ? 'text-emerald-300' : tone === 'negative' ? 'text-red-300' : 'text-white')}>{value}</p>
     </div>
+  )
+}
+
+function ActionNotice({ message, tone, className }: { message: string; tone: 'success' | 'warning'; className?: string }) {
+  return (
+    <p
+      className={classNames(
+        'flex items-start gap-2 rounded border px-3 py-2 text-sm',
+        tone === 'success'
+          ? 'border-emerald-400/30 bg-emerald-500/10 text-emerald-200'
+          : 'border-amber-400/30 bg-amber-500/10 text-amber-200',
+        className,
+      )}
+    >
+      {tone === 'success' ? <CheckCircle2 className="mt-0.5 shrink-0" size={16} /> : <AlertTriangle className="mt-0.5 shrink-0" size={16} />}
+      <span>{message}</span>
+    </p>
   )
 }
 

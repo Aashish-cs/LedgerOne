@@ -1,6 +1,7 @@
 import axios from 'axios'
 import type {
   AdminUser,
+  AppNotification,
   ApiResponse,
   AuditLog,
   AuthResponse,
@@ -57,6 +58,7 @@ export const api = {
   watchlist: () => http.get<ApiResponse<WatchlistItem[]>>('/watchlist').then(unwrap),
   addWatchlist: (symbol: string) => http.post<ApiResponse<WatchlistItem>>('/watchlist', { symbol }).then(unwrap),
   removeWatchlist: (id: string) => http.delete(`/watchlist/${id}`),
+  notifications: () => http.get<ApiResponse<AppNotification[]>>('/notifications').then(unwrap),
   adminUsers: (search = '') =>
     http.get<ApiResponse<PageResponse<AdminUser>>>('/admin/users', { params: { search, size: 20 } }).then(unwrap),
   freezeUser: (id: string) => http.patch(`/admin/users/${id}/freeze`),
