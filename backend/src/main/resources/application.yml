@@ -2,8 +2,8 @@ spring:
   application:
     name: LedgerOne
   datasource:
-    url: ${DATABASE_URL:jdbc:postgresql://localhost:5432/ledgerone}
-    username: ${DATABASE_USERNAME:ledgerone}
+    url: "${DATABASE_JDBC_URL:jdbc:postgresql://${DATABASE_HOST:localhost}:${DATABASE_PORT:5432}/${DATABASE_NAME:ledgerone}}"
+    username: ${DATABASE_USERNAME:${DATABASE_USER:ledgerone}}
     password: ${DATABASE_PASSWORD:ledgerone}
   flyway:
     enabled: true
@@ -21,13 +21,14 @@ spring:
     default-property-inclusion: non_null
 
 server:
-  port: ${SERVER_PORT:8080}
+  port: ${PORT:${SERVER_PORT:8080}}
 
 ledgerone:
   security:
     jwt-secret: ${JWT_SECRET:local-development-secret-change-me-to-at-least-32-bytes}
     access-token-minutes: ${ACCESS_TOKEN_MINUTES:20}
     refresh-token-days: ${REFRESH_TOKEN_DAYS:7}
+    allowed-origins: ${ALLOWED_ORIGINS:http://localhost:5173,http://127.0.0.1:5173}
   trading:
     fee-rate: ${TRADING_FEE_RATE:0.0010}
     min-fee: ${TRADING_MIN_FEE:1.00}

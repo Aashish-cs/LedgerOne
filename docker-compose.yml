@@ -19,10 +19,11 @@ services:
     build:
       context: ./backend
     environment:
-      DATABASE_URL: jdbc:postgresql://db:5432/ledgerone
+      DATABASE_JDBC_URL: jdbc:postgresql://db:5432/ledgerone
       DATABASE_USERNAME: ledgerone
       DATABASE_PASSWORD: ledgerone
       JWT_SECRET: local-compose-secret-change-for-real-deployments-32-bytes
+      ALLOWED_ORIGINS: http://localhost:5173,http://127.0.0.1:5173
       MARKET_SIMULATOR_ENABLED: "true"
     ports:
       - "8080:8080"

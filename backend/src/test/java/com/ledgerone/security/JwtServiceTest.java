@@ -6,12 +6,14 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.ledgerone.entity.Role;
 import com.ledgerone.entity.RoleName;
 import com.ledgerone.entity.UserAccount;
+import java.util.List;
 import java.util.UUID;
 import org.junit.jupiter.api.Test;
 
 class JwtServiceTest {
     private final JwtService jwtService = new JwtService(
-            new ObjectMapper(), new SecurityProperties("test-secret-with-at-least-32-bytes", 20, 7));
+            new ObjectMapper(),
+            new SecurityProperties("test-secret-with-at-least-32-bytes", 20, 7, List.of("http://localhost:5173")));
 
     @Test
     void generatedTokenCanBeParsed() {

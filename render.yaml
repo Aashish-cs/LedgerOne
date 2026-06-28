@@ -1,0 +1,45 @@
+services:
+  - type: web
+    name: ledgerone-api
+    runtime: docker
+    plan: free
+    dockerfilePath: ./backend/Dockerfile
+    dockerContext: ./backend
+    healthCheckPath: /actuator/health
+    envVars:
+      - key: DATABASE_HOST
+        fromDatabase:
+          name: ledgerone-db
+          property: host
+      - key: DATABASE_PORT
+        fromDatabase:
+          name: ledgerone-db
+          property: port
+      - key: DATABASE_NAME
+        fromDatabase:
+          name: ledgerone-db
+          property: database
+      - key: DATABASE_USERNAME
+        fromDatabase:
+          name: ledgerone-db
+          property: user
+      - key: DATABASE_PASSWORD
+        fromDatabase:
+          name: ledgerone-db
+          property: password
+      - key: JWT_SECRET
+        generateValue: true
+      - key: ALLOWED_ORIGINS
+        sync: false
+      - key: MARKET_SIMULATOR_ENABLED
+        value: "true"
+      - key: ACCESS_TOKEN_MINUTES
+        value: "20"
+      - key: REFRESH_TOKEN_DAYS
+        value: "7"
+
+databases:
+  - name: ledgerone-db
+    databaseName: ledgerone
+    user: ledgerone
+    plan: free

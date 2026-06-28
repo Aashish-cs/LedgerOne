@@ -91,6 +91,10 @@ npm run build
 
 The frontend includes demo fallback data so the dashboard remains reviewable while the backend is offline. When the backend is running, Axios and TanStack Query use the live REST APIs.
 
+## Deployment
+
+Use [DEPLOYMENT.md](DEPLOYMENT.md) for the Render backend and Vercel frontend workflow.
+
 ## Beyond The Prompt
 
 Additional polish included for a stronger interview presentation:
