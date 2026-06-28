@@ -78,6 +78,7 @@ import type {
   OrderSide,
   OrderStatus,
   OrderType,
+  PageResponse,
   Portfolio,
   RiskAlert,
   Stock,
@@ -534,6 +535,12 @@ function PortfolioPage() {
     onSuccess: (portfolio) => {
       reset()
       setMessage(`Portfolio "${portfolio.name}" is ready`)
+      if (!isDemoSession) {
+        queryClient.setQueryData<Portfolio[]>(['portfolios'], (current) => {
+          const existing = current ?? []
+          return existing.some((item) => item.id === portfolio.id) ? existing : [portfolio, ...existing]
+        })
+      }
       void queryClient.invalidateQueries({ queryKey: ['portfolios'] })
     },
     onError: () => setMessage('Portfolio request failed. Check API access or try demo mode.'),
@@ -549,8 +556,13 @@ function PortfolioPage() {
       await api.renamePortfolio(id, name)
       return { id, name }
     },
-    onSuccess: ({ name }) => {
+    onSuccess: ({ id, name }) => {
       setMessage(`Portfolio renamed to "${name}"`)
+      if (!isDemoSession) {
+        queryClient.setQueryData<Portfolio[]>(['portfolios'], (current) =>
+          current?.map((portfolio) => (portfolio.id === id ? { ...portfolio, name, updatedAt: new Date().toISOString() } : portfolio)) ?? current,
+        )
+      }
       void queryClient.invalidateQueries({ queryKey: ['portfolios'] })
     },
     onError: () => setMessage('Rename failed. The API may still be blocked by CORS.'),
@@ -569,6 +581,9 @@ function PortfolioPage() {
     },
     onSuccess: (portfolio) => {
       setMessage(`Portfolio "${portfolio.name}" deleted`)
+      if (!isDemoSession) {
+        queryClient.setQueryData<Portfolio[]>(['portfolios'], (current) => current?.filter((item) => item.id !== portfolio.id) ?? current)
+      }
       void queryClient.invalidateQueries({ queryKey: ['portfolios'] })
     },
     onError: (error) => setMessage(error instanceof Error ? error.message : 'Delete failed'),
@@ -729,6 +744,16 @@ function TradingPage() {
     },
     onSuccess: (order) => {
       setMessage(`Order ${order.status.toLowerCase()} for ${order.symbol}`)
+      if (!isDemoSession) {
+        queryClient.setQueryData<PageResponse<Order>>(['orders', selectedPortfolioId], (current) => ({
+          content: [order, ...(current?.content.filter((item) => item.id !== order.id) ?? [])],
+          page: current?.page ?? 0,
+          size: current?.size ?? 20,
+          totalElements: (current?.totalElements ?? 0) + (current?.content.some((item) => item.id === order.id) ? 0 : 1),
+          totalPages: current?.totalPages ?? 1,
+          last: current?.last ?? true,
+        }))
+      }
       reset({ portfolioId: selectedPortfolioId, symbol: 'AAPL', side: 'BUY', type: 'MARKET', quantity: 5, clientOrderId: `web-${Date.now()}` })
       void queryClient.invalidateQueries({ queryKey: ['orders'] })
       void queryClient.invalidateQueries({ queryKey: ['dashboard'] })
@@ -746,6 +771,11 @@ function TradingPage() {
     },
     onSuccess: (order) => {
       setMessage(`${order.symbol} order cancelled`)
+      if (!isDemoSession) {
+        queryClient.setQueryData<PageResponse<Order>>(['orders', selectedPortfolioId], (current) =>
+          current ? { ...current, content: current.content.map((item) => (item.id === order.id ? order : item)) } : current,
+        )
+      }
       void queryClient.invalidateQueries({ queryKey: ['orders'] })
     },
     onError: () => setMessage('Only pending orders can be cancelled.'),
@@ -836,6 +866,12 @@ function WatchlistPage() {
     onSuccess: (item) => {
       reset({ symbol: 'GOOGL' })
       setMessage(`${item.stock.symbol} is on the watchlist`)
+      if (!isDemoSession) {
+        queryClient.setQueryData<WatchlistItem[]>(['watchlist'], (current) => {
+          const existing = current ?? []
+          return existing.some((entry) => entry.id === item.id) ? existing : [item, ...existing]
+        })
+      }
       void queryClient.invalidateQueries({ queryKey: ['watchlist'] })
     },
     onError: () => setMessage('Watchlist update failed. Check API/CORS.'),
@@ -851,6 +887,9 @@ function WatchlistPage() {
     },
     onSuccess: (item) => {
       setMessage(`${item.stock.symbol} removed from the watchlist`)
+      if (!isDemoSession) {
+        queryClient.setQueryData<WatchlistItem[]>(['watchlist'], (current) => current?.filter((entry) => entry.id !== item.id) ?? current)
+      }
       void queryClient.invalidateQueries({ queryKey: ['watchlist'] })
     },
     onError: () => setMessage('Remove failed. Check API/CORS.'),
@@ -932,6 +971,11 @@ function AdminPage() {
     },
     onSuccess: (user) => {
       setMessage(`${user.fullName} is now ${user.status.toLowerCase()}`)
+      if (!isDemoSession) {
+        queryClient.setQueryData<PageResponse<AdminUser>>(['admin-users', search], (current) =>
+          current ? { ...current, content: current.content.map((item) => (item.id === user.id ? user : item)) } : current,
+        )
+      }
       void queryClient.invalidateQueries({ queryKey: ['admin-users'] })
       void queryClient.invalidateQueries({ queryKey: ['audit-logs'] })
     },
