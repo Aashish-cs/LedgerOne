@@ -87,3 +87,4 @@ admin@ledgerone.com / Admin123!
 
 - Render free services can sleep after inactivity, so the first API request may be slow.
 - The app uses a self-hosted API and simulated market data. No paid market-data API is required.
+- The backend accepts Render's managed Postgres `DATABASE_URL` and converts it to Spring's JDBC format at startup.
