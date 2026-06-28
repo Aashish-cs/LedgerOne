@@ -1,16 +1,39 @@
 # LedgerOne
 
-Enterprise Investment Portfolio & Order Management Platform.
+Enterprise investment portfolio and order management platform built with Spring Boot, React, PostgreSQL, JWT authentication, risk analytics, and Render/Vercel deployment.
 
-LedgerOne is a Spring Boot 3 and React application that simulates an internal investment management platform. It is intentionally focused on backend architecture, security, business rules, auditability, and a restrained enterprise UI rather than consumer trading visuals.
+[Live Frontend](https://ledger-one-mocha.vercel.app) · [Backend Health](https://ledgerone-api-litx.onrender.com/actuator/health) · [API Status](https://ledgerone-api-litx.onrender.com/api/system/status)
 
-The API is self-hosted and free to run locally. It does not depend on paid brokerage, crypto, or market-data providers. The included market simulator creates realistic sample prices for interview and portfolio-demo workflows.
+![LedgerOne portfolio dashboard](docs/assets/ledgerone-dashboard.png)
+
+## Overview
+
+LedgerOne simulates an internal investment management platform for portfolio operations, trading workflows, risk review, and audit visibility. It is designed as an enterprise-style full-stack project: backend rules and persistence are treated as the source of truth, while the frontend presents a quiet, operations-focused dashboard for repeated use.
+
+The project is free to run. It does not require paid brokerage, crypto, or market-data APIs. Seed data and a market simulator provide realistic portfolio movement for demos, interviews, and deployment testing.
+
+## Product Surface
+
+- Portfolio overview with cash balance, market value, daily/monthly profit, allocation, and risk score
+- Holdings, cost basis, realized P/L, unrealized P/L, and allocation analytics
+- Market and limit orders with pending, filled, cancelled, and rejected states
+- Duplicate-safe order placement through `clientOrderId`
+- Watchlist and simulated market prices
+- Admin views for users, orders, risk alerts, and audit logs
+- JWT access tokens with hashed opaque refresh tokens
+- Flyway-managed PostgreSQL schema and seed data
+- Render backend blueprint and Vercel frontend deployment
 
 ## Stack
 
-- Java 21, Spring Boot 3.5, Spring Security, JWT, Spring Data JPA, Flyway, PostgreSQL
-- React, Vite, TypeScript, Tailwind CSS, React Router, TanStack Query, Axios, React Hook Form, Recharts
-- JUnit 5, Mockito-ready test setup, Testcontainers dependencies, Docker Compose, GitHub Actions
+| Layer | Technology |
+| --- | --- |
+| Backend | Java 21, Spring Boot 3.5, Spring Security, Spring Data JPA, Flyway |
+| Database | PostgreSQL |
+| Frontend | React, Vite, TypeScript, Tailwind CSS, React Router |
+| Data/UI | TanStack Query, Axios, React Hook Form, Recharts, Lucide icons |
+| Testing | JUnit 5, Mockito, Maven, ESLint |
+| Deployment | Docker, Render, Vercel, GitHub Actions |
 
 ## Demo Accounts
 
@@ -21,30 +44,26 @@ The API is self-hosted and free to run locally. It does not depend on paid broke
 
 ## Architecture
 
-The backend uses package boundaries that mirror enterprise service ownership:
+The backend package boundaries mirror enterprise service ownership:
 
 - `controller`: REST APIs with validation and response envelopes
-- `service`: application use cases and transactional workflows
+- `service`: transactional business workflows
 - `repository`: Spring Data persistence boundaries
 - `entity`: JPA entities, never exposed directly
-- `dto`: external contracts
+- `dto`: external request/response contracts
 - `mapper`: MapStruct DTO mapping
 - `security`: JWT, refresh tokens, roles, current-user access
-- `audit`, `risk`, `notification`, `scheduler`: cross-cutting domain capabilities
+- `audit`, `risk`, `notification`, `scheduler`: domain and operational capabilities
 - `exception`, `validation`, `config`: platform concerns
 
-Important rules implemented:
+Core business rules include:
 
 - BCrypt password hashing and role-based authorization
-- JWT access tokens and opaque hashed refresh tokens
-- Duplicate-safe order placement through `clientOrderId`
-- Buying power and share availability validation
-- Market and limit orders with pending, filled, cancelled, and rejected states
-- Immutable transaction ledger records for completed orders
-- Portfolio holdings, cost basis, realized P/L, unrealized P/L, allocation, and return calculations
-- Market price simulation through Spring Scheduler and persisted price history
-- Risk score, concentration risk, sector allocation, daily exposure, and risk alerts
-- Admin portal APIs for users, orders, audit logs, and risk alerts
+- Buying power and share availability checks
+- Order execution with fees, ledger transactions, holdings updates, and rejection reasons
+- Portfolio performance, allocation, concentration, and risk scoring
+- Scheduled market simulation and persisted price history
+- Admin audit trail for sensitive actions
 
 ## Run With Docker
 
@@ -54,10 +73,10 @@ docker compose up --build
 
 Then open:
 
-- Frontend: http://localhost:5173
-- Backend API: http://localhost:8080/api
-- API status: http://localhost:8080/api/system/status
-- Swagger UI: http://localhost:8080/swagger-ui.html
+- Frontend: `http://localhost:5173`
+- Backend API: `http://localhost:8080/api`
+- API status: `http://localhost:8080/api/system/status`
+- Swagger UI: `http://localhost:8080/swagger-ui.html`
 
 ## Run Locally
 
@@ -76,7 +95,7 @@ npm install
 npm run dev
 ```
 
-PostgreSQL is expected at `jdbc:postgresql://localhost:5432/ledgerone` unless overridden with environment variables. Flyway creates and seeds the database on startup.
+PostgreSQL is expected at `jdbc:postgresql://localhost:5432/ledgerone` unless overridden with environment variables. Flyway creates and seeds the schema on startup.
 
 ## Verification
 
@@ -89,17 +108,24 @@ npm run lint
 npm run build
 ```
 
-The frontend includes demo fallback data so the dashboard remains reviewable while the backend is offline. When the backend is running, Axios and TanStack Query use the live REST APIs.
+The frontend includes demo fallback data so the dashboard remains reviewable while the backend is sleeping or temporarily unavailable. When the backend is reachable from the browser, Axios and TanStack Query use the live REST APIs.
 
 ## Deployment
 
 Use [DEPLOYMENT.md](DEPLOYMENT.md) for the Render backend and Vercel frontend workflow.
 
+Current production configuration:
+
+- Frontend: `https://ledger-one-mocha.vercel.app`
+- Backend: `https://ledgerone-api-litx.onrender.com`
+- Frontend env: `VITE_API_BASE_URL=https://ledgerone-api-litx.onrender.com/api`
+- Backend CORS: `ALLOWED_ORIGINS=https://ledger-one-mocha.vercel.app,http://localhost:5173,http://127.0.0.1:5173`
+
 ## Beyond The Prompt
 
-Additional polish included for a stronger interview presentation:
-
 - Self-hosted API status endpoint and live/demo mode indicator in the UI
+- Render-compatible database URL handling for managed PostgreSQL
+- Forward-only Flyway repair migration for refresh-token schema drift
 - Focused trading service tests for duplicate requests, persisted rejections, cash updates, holdings, ledger writes, and risk hooks
 - Operational health endpoint through Spring Actuator
 - Dockerized frontend reverse proxy to the backend API
