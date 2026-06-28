@@ -952,10 +952,10 @@ function AdminPage() {
   const ordersQuery = useQuery({ queryKey: ['admin-orders'], queryFn: api.adminOrders, placeholderData: pageOfOrders })
   const auditQuery = useQuery({ queryKey: ['audit-logs'], queryFn: api.auditLogs, placeholderData: demoAuditLogs })
   const alertsQuery = useQuery({ queryKey: ['risk-alerts'], queryFn: api.riskAlerts, placeholderData: { content: demoDashboard.riskAlerts, page: 0, size: 20, totalElements: 1, totalPages: 1, last: true } })
-  const filteredDemoUsers = demoUsers.filter((user) =>
+  const userRows = isDemoSession ? demoUsers : (usersQuery.data?.content ?? demoUsers)
+  const users = userRows.filter((user) =>
     `${user.fullName} ${user.email}`.toLowerCase().includes(search.trim().toLowerCase()),
   )
-  const users = isDemoSession ? filteredDemoUsers : (usersQuery.data?.content ?? filteredDemoUsers)
   const accountMutation = useMutation({
     mutationFn: async ({ user, nextStatus }: { user: AdminUser; nextStatus: AdminUser['status'] }) => {
       if (isDemoSession) {
