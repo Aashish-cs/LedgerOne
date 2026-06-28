@@ -946,6 +946,7 @@ function AdminPage() {
   const { isDemoSession } = useAuth()
   const [search, setSearch] = useState('')
   const [demoUsers, setDemoUsers] = useState(demoAdminUsers.content)
+  const [accountStatuses, setAccountStatuses] = useState<Record<string, AdminUser['status']>>({})
   const [message, setMessage] = useState('')
   const queryClient = useQueryClient()
   const usersQuery = useQuery({ queryKey: ['admin-users', search], queryFn: () => api.adminUsers(search), placeholderData: demoAdminUsers })
@@ -953,9 +954,9 @@ function AdminPage() {
   const auditQuery = useQuery({ queryKey: ['audit-logs'], queryFn: api.auditLogs, placeholderData: demoAuditLogs })
   const alertsQuery = useQuery({ queryKey: ['risk-alerts'], queryFn: api.riskAlerts, placeholderData: { content: demoDashboard.riskAlerts, page: 0, size: 20, totalElements: 1, totalPages: 1, last: true } })
   const userRows = isDemoSession ? demoUsers : (usersQuery.data?.content ?? demoUsers)
-  const users = userRows.filter((user) =>
-    `${user.fullName} ${user.email}`.toLowerCase().includes(search.trim().toLowerCase()),
-  )
+  const users = userRows
+    .map((user) => (accountStatuses[user.id] ? { ...user, status: accountStatuses[user.id] } : user))
+    .filter((user) => `${user.fullName} ${user.email}`.toLowerCase().includes(search.trim().toLowerCase()))
   const accountMutation = useMutation({
     mutationFn: async ({ user, nextStatus }: { user: AdminUser; nextStatus: AdminUser['status'] }) => {
       if (isDemoSession) {
@@ -970,6 +971,7 @@ function AdminPage() {
       return { ...user, status: nextStatus }
     },
     onSuccess: (user) => {
+      setAccountStatuses((current) => ({ ...current, [user.id]: user.status }))
       setMessage(`${user.fullName} is now ${user.status.toLowerCase()}`)
       if (!isDemoSession) {
         queryClient.setQueryData<PageResponse<AdminUser>>(['admin-users', search], (current) =>
