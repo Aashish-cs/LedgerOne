@@ -15,6 +15,7 @@ import {
   Gauge,
   LayoutDashboard,
   ListFilter,
+  Loader2,
   Lock,
   LogOut,
   PieChart as PieChartIcon,
@@ -191,6 +192,8 @@ function LoginPage() {
   const navigate = useNavigate()
   const [mode, setMode] = useState<'login' | 'register'>('login')
   const [error, setError] = useState('')
+  const [statusMessage, setStatusMessage] = useState('')
+  const [authInProgress, setAuthInProgress] = useState(false)
   const systemQuery = useQuery({
     queryKey: ['system-status'],
     queryFn: api.systemStatus,
@@ -205,9 +208,23 @@ function LoginPage() {
     },
   })
 
-  if (user) {
+  if (user && !authInProgress && !statusMessage) {
     return <Navigate to="/" replace />
   }
+
+  const switchMode = (nextMode: 'login' | 'register') => {
+    setMode(nextMode)
+    setError('')
+    setStatusMessage('')
+  }
+
+  const submitLabel = formState.isSubmitting
+    ? mode === 'login'
+      ? 'Signing in...'
+      : 'Creating account...'
+    : mode === 'login'
+      ? 'Sign in'
+      : 'Create account'
 
   return (
     <main className="min-h-screen bg-[#101317] text-slate-100">
@@ -247,16 +264,29 @@ function LoginPage() {
           <form
             className="w-full max-w-md rounded border border-white/10 bg-[#171d23] p-6 shadow-2xl shadow-black/30"
             onSubmit={handleSubmit(async (values) => {
+              setAuthInProgress(true)
               setError('')
+              setStatusMessage('')
               try {
                 if (mode === 'login') {
                   await login(values.email, values.password)
                 } else {
                   await register(values.email, values.password, values.fullName)
                 }
+                const demoSession = localStorage.getItem('ledgerone.accessToken') === 'demo-access-token'
+                setStatusMessage(
+                  demoSession
+                    ? 'Demo workspace ready. Opening dashboard...'
+                    : mode === 'login'
+                      ? 'Signed in. Opening dashboard...'
+                      : 'Account created. Opening dashboard...',
+                )
+                await new Promise((resolve) => window.setTimeout(resolve, 500))
                 navigate('/')
               } catch (exception) {
                 setError(exception instanceof Error ? exception.message : 'Authentication failed')
+              } finally {
+                setAuthInProgress(false)
               }
             })}
           >
@@ -267,7 +297,7 @@ function LoginPage() {
                   'h-10 flex-1 rounded text-sm font-medium',
                   mode === 'login' ? 'bg-emerald-400 text-[#0d1114]' : 'text-slate-300',
                 )}
-                onClick={() => setMode('login')}
+                onClick={() => switchMode('login')}
               >
                 Sign in
               </button>
@@ -277,7 +307,7 @@ function LoginPage() {
                   'h-10 flex-1 rounded text-sm font-medium',
                   mode === 'register' ? 'bg-emerald-400 text-[#0d1114]' : 'text-slate-300',
                 )}
-                onClick={() => setMode('register')}
+                onClick={() => switchMode('register')}
               >
                 Register
               </button>
@@ -296,13 +326,15 @@ function LoginPage() {
               </Field>
             </div>
             {error && <p className="mt-4 rounded border border-red-400/30 bg-red-500/10 px-3 py-2 text-sm text-red-200">{error}</p>}
+            {statusMessage && <ActionNotice tone="success" message={statusMessage} className="mt-4" />}
             <button
               type="submit"
-              className="mt-6 flex h-11 w-full items-center justify-center gap-2 rounded bg-emerald-400 px-4 font-semibold text-[#0d1114] hover:bg-emerald-300"
+              className="mt-6 flex h-11 w-full items-center justify-center gap-2 rounded bg-emerald-400 px-4 font-semibold text-[#0d1114] hover:bg-emerald-300 disabled:cursor-not-allowed disabled:opacity-70"
               disabled={formState.isSubmitting}
+              aria-busy={formState.isSubmitting}
             >
-              <Lock size={18} />
-              {mode === 'login' ? 'Sign in' : 'Create account'}
+              {formState.isSubmitting ? <Loader2 className="animate-spin" size={18} /> : <Lock size={18} />}
+              {submitLabel}
             </button>
           </form>
         </section>

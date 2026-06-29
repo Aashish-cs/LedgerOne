@@ -33,7 +33,31 @@ http.interceptors.request.use((config) => {
   return config
 })
 
-const unwrap = <T>(response: { data: ApiResponse<T> }) => response.data.data
+const unwrap = <T>(response: { data: ApiResponse<T> }) => {
+  if (!response.data.success) {
+    throw new Error(response.data.message || 'Request failed')
+  }
+  return response.data.data
+}
+
+export function isApiNetworkError(error: unknown) {
+  return axios.isAxiosError(error) && !error.response
+}
+
+export function getApiErrorMessage(error: unknown, fallback = 'Request failed') {
+  if (axios.isAxiosError(error)) {
+    const payload = error.response?.data
+    if (payload && typeof payload === 'object' && 'message' in payload && typeof payload.message === 'string') {
+      const details = 'data' in payload ? payload.data : undefined
+      if (details && typeof details === 'object') {
+        const firstDetail = Object.values(details).find((value): value is string => typeof value === 'string')
+        return firstDetail ? `${payload.message}: ${firstDetail}` : payload.message
+      }
+      return payload.message
+    }
+  }
+  return error instanceof Error ? error.message : fallback
+}
 
 export const api = {
   login: (email: string, password: string) =>

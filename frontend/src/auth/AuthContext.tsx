@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react'
-import { api } from '../api/client'
+import { api, getApiErrorMessage, isApiNetworkError } from '../api/client'
 import { demoAuth } from '../data/demo'
 import { AuthContext } from './auth-store'
 import type { AuthContextValue } from './auth-store'
@@ -43,7 +43,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         let auth: AuthResponse
         try {
           auth = await api.login(email, password)
-        } catch {
+        } catch (error) {
+          if (!isApiNetworkError(error)) {
+            throw new Error(getApiErrorMessage(error, 'Sign in failed'))
+          }
           auth = demoLogin(email, password)
         }
         persist(auth)
@@ -53,7 +56,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         let auth: AuthResponse
         try {
           auth = await api.register(email, password, fullName)
-        } catch {
+        } catch (error) {
+          if (!isApiNetworkError(error)) {
+            throw new Error(getApiErrorMessage(error, 'Create account failed'))
+          }
           auth = { ...demoAuth, user: { ...demoAuth.user, email, fullName, roles: ['USER'] } }
         }
         persist(auth)
