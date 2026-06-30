@@ -3,6 +3,8 @@ services:
     name: ledgerone-api
     runtime: docker
     plan: free
+    branch: main
+    autoDeployTrigger: commit
     dockerfilePath: ./backend/Dockerfile
     dockerContext: ./backend
     healthCheckPath: /actuator/health
