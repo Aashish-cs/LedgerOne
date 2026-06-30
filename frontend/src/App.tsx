@@ -29,7 +29,7 @@ import {
   WalletCards,
   X,
 } from 'lucide-react'
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { useForm } from 'react-hook-form'
 import {
   BrowserRouter,
@@ -55,7 +55,7 @@ import {
   XAxis,
   YAxis,
 } from 'recharts'
-import { api } from './api/client'
+import { api, getApiErrorMessage } from './api/client'
 import { AuthProvider } from './auth/AuthContext'
 import { useAuth } from './auth/auth-store'
 import {
@@ -552,8 +552,8 @@ function PortfolioPage() {
   const queryClient = useQueryClient()
   const [demoPortfolios, setDemoPortfolios] = useState<Portfolio[]>([demoPortfolio])
   const [message, setMessage] = useState('')
-  const portfoliosQuery = useQuery({ queryKey: ['portfolios'], queryFn: api.portfolios, placeholderData: [demoPortfolio] })
-  const portfolios = isDemoSession ? demoPortfolios : (portfoliosQuery.data ?? demoPortfolios)
+  const portfoliosQuery = useQuery({ queryKey: ['portfolios'], queryFn: api.portfolios, placeholderData: isDemoSession ? [demoPortfolio] : undefined })
+  const portfolios = isDemoSession ? demoPortfolios : (portfoliosQuery.data ?? [])
   const { register, handleSubmit, reset } = useForm({ defaultValues: { name: '' } })
   const createMutation = useMutation({
     mutationFn: async ({ name }: { name: string }) => {
@@ -636,15 +636,21 @@ function PortfolioPage() {
           </form>
         </Panel>
         <div className="space-y-4">
-          {portfolios.map((portfolio) => (
-            <PortfolioDetail
-              key={portfolio.id}
-              portfolio={portfolio}
-              onRename={(name) => renameMutation.mutate({ id: portfolio.id, name })}
-              onDelete={() => deleteMutation.mutate(portfolio)}
-              busy={renameMutation.isPending || deleteMutation.isPending}
-            />
-          ))}
+          {portfolios.length === 0 ? (
+            <Panel title="No Portfolios" icon={BriefcaseBusiness}>
+              <p className="text-sm text-slate-400">Create a portfolio to start trading with live account data.</p>
+            </Panel>
+          ) : (
+            portfolios.map((portfolio) => (
+              <PortfolioDetail
+                key={portfolio.id}
+                portfolio={portfolio}
+                onRename={(name) => renameMutation.mutate({ id: portfolio.id, name })}
+                onDelete={() => deleteMutation.mutate(portfolio)}
+                busy={renameMutation.isPending || deleteMutation.isPending}
+              />
+            ))
+          )}
         </div>
       </div>
     </Page>
@@ -742,20 +748,26 @@ function TradingPage() {
   const queryClient = useQueryClient()
   const [demoOrdersState, setDemoOrdersState] = useState<Order[]>(demoOrders)
   const [message, setMessage] = useState('')
-  const portfoliosQuery = useQuery({ queryKey: ['portfolios'], queryFn: api.portfolios, placeholderData: [demoPortfolio] })
-  const stocksQuery = useQuery({ queryKey: ['stocks'], queryFn: api.stocks, placeholderData: demoStocks })
-  const portfolios = portfoliosQuery.data ?? [demoPortfolio]
-  const selectedPortfolioId = portfolios[0]?.id ?? demoPortfolio.id
+  const portfoliosQuery = useQuery({ queryKey: ['portfolios'], queryFn: api.portfolios, placeholderData: isDemoSession ? [demoPortfolio] : undefined })
+  const stocksQuery = useQuery({
+    queryKey: ['stocks'],
+    queryFn: api.stocks,
+    placeholderData: isDemoSession ? demoStocks : undefined,
+    refetchInterval: 60_000,
+  })
+  const portfolios = useMemo(() => (isDemoSession ? [demoPortfolio] : (portfoliosQuery.data ?? [])), [isDemoSession, portfoliosQuery.data])
+  const selectedPortfolioId = portfolios[0]?.id
   const ordersQuery = useQuery({
     queryKey: ['orders', selectedPortfolioId],
-    queryFn: () => api.orders(selectedPortfolioId),
-    placeholderData: pageOfOrders,
+    queryFn: () => api.orders(selectedPortfolioId ?? ''),
+    enabled: isDemoSession || Boolean(selectedPortfolioId),
+    placeholderData: isDemoSession ? pageOfOrders : undefined,
   })
-  const stocks = stocksQuery.data ?? demoStocks
-  const orders = isDemoSession ? demoOrdersState : (ordersQuery.data?.content ?? demoOrdersState)
-  const { register, handleSubmit, watch, reset } = useForm<OrderRequest>({
+  const stocks = useMemo(() => (isDemoSession ? demoStocks : (stocksQuery.data ?? [])), [isDemoSession, stocksQuery.data])
+  const orders = isDemoSession ? demoOrdersState : (ordersQuery.data?.content ?? [])
+  const { register, handleSubmit, watch, reset, setValue } = useForm<OrderRequest>({
     defaultValues: {
-      portfolioId: selectedPortfolioId,
+      portfolioId: selectedPortfolioId ?? '',
       symbol: 'AAPL',
       side: 'BUY',
       type: 'MARKET',
@@ -764,6 +776,24 @@ function TradingPage() {
     },
   })
   const type = watch('type')
+  const symbol = watch('symbol')
+  const quantity = Number(watch('quantity') ?? 0)
+  const selectedStock = stocks.find((stock) => stock.symbol === symbol) ?? stocks[0]
+  const estimatedNotional = selectedStock ? selectedStock.lastPrice * quantity : 0
+  const formReady = isDemoSession || (Boolean(selectedPortfolioId) && Boolean(selectedStock) && !portfoliosQuery.isLoading && !stocksQuery.isLoading)
+
+  useEffect(() => {
+    if (selectedPortfolioId) {
+      setValue('portfolioId', selectedPortfolioId)
+    }
+  }, [selectedPortfolioId, setValue])
+
+  useEffect(() => {
+    if (!selectedStock && stocks[0]) {
+      setValue('symbol', stocks[0].symbol)
+    }
+  }, [selectedStock, setValue, stocks])
+
   const mutation = useMutation({
     mutationFn: async (request: OrderRequest) => {
       if (isDemoSession) {
@@ -786,12 +816,12 @@ function TradingPage() {
           last: current?.last ?? true,
         }))
       }
-      reset({ portfolioId: selectedPortfolioId, symbol: 'AAPL', side: 'BUY', type: 'MARKET', quantity: 5, clientOrderId: `web-${Date.now()}` })
+      reset({ portfolioId: selectedPortfolioId ?? '', symbol: 'AAPL', side: 'BUY', type: 'MARKET', quantity: 5, clientOrderId: `web-${Date.now()}` })
       void queryClient.invalidateQueries({ queryKey: ['orders'] })
       void queryClient.invalidateQueries({ queryKey: ['dashboard'] })
       void queryClient.invalidateQueries({ queryKey: ['portfolios'] })
     },
-    onError: () => setMessage('Order request failed. Confirm API/CORS or continue in demo mode.'),
+    onError: (error) => setMessage(getApiErrorMessage(error, 'Order request failed. Confirm API/CORS or continue in demo mode.')),
   })
   const cancelMutation = useMutation({
     mutationFn: async (order: Order) => {
@@ -812,8 +842,11 @@ function TradingPage() {
     },
     onError: () => setMessage('Only pending orders can be cancelled.'),
   })
+  const orderMessageIsWarning = ['failed', 'only pending', 'insufficient', 'unavailable', 'require', 'not found'].some((term) =>
+    message.toLowerCase().includes(term),
+  )
   return (
-    <Page title="Trading" eyebrow="Simulated equity order management">
+    <Page title="Trading" eyebrow={isDemoSession ? 'Demo equity order management' : 'Live equity order management'}>
       <div className="grid gap-4 xl:grid-cols-[0.72fr_1.28fr]">
         <Panel title="New Order" icon={CircleDollarSign}>
           <form
@@ -828,28 +861,46 @@ function TradingPage() {
             )}
           >
             <Field label="Portfolio">
-              <select className="input" {...register('portfolioId', { required: true })}>
-                {portfolios.map((portfolio) => (
-                  <option key={portfolio.id} value={portfolio.id}>
-                    {portfolio.name}
-                  </option>
-                ))}
+              <select className="input" disabled={!formReady} {...register('portfolioId', { required: true })}>
+                {portfolios.length === 0 ? (
+                  <option value="">Loading portfolios...</option>
+                ) : (
+                  portfolios.map((portfolio) => (
+                    <option key={portfolio.id} value={portfolio.id}>
+                      {portfolio.name}
+                    </option>
+                  ))
+                )}
               </select>
             </Field>
             <div className="grid grid-cols-2 gap-3">
               <Field label="Symbol">
-                <select className="input" {...register('symbol', { required: true })}>
-                  {stocks.map((stock: Stock) => (
-                    <option key={stock.symbol} value={stock.symbol}>
-                      {stock.symbol}
-                    </option>
-                  ))}
+                <select className="input" disabled={!formReady} {...register('symbol', { required: true })}>
+                  {stocks.length === 0 ? (
+                    <option value="">Loading symbols...</option>
+                  ) : (
+                    stocks.map((stock: Stock) => (
+                      <option key={stock.symbol} value={stock.symbol}>
+                        {stock.symbol}
+                      </option>
+                    ))
+                  )}
                 </select>
               </Field>
               <Field label="Quantity">
                 <input className="input" min="0.000001" step="0.000001" type="number" {...register('quantity', { required: true, min: 0.000001, valueAsNumber: true })} />
               </Field>
             </div>
+            {stocksQuery.isError && (
+              <ActionNotice tone="warning" message={getApiErrorMessage(stocksQuery.error, 'Live stock prices are unavailable. Try again shortly.')} />
+            )}
+            {selectedStock && (
+              <div className="grid gap-3 sm:grid-cols-3">
+                <MiniStat label={`${selectedStock.symbol} price`} value={currency(selectedStock.lastPrice)} />
+                <MiniStat label="Estimated value" value={currency(estimatedNotional)} />
+                <MiniStat label="Quote updated" value={formatDate(selectedStock.updatedAt)} />
+              </div>
+            )}
             <Segmented label="Side" options={['BUY', 'SELL']} field={register('side')} />
             <Segmented label="Order type" options={['MARKET', 'LIMIT']} field={register('type')} />
             {type === 'LIMIT' && (
@@ -860,11 +911,11 @@ function TradingPage() {
             <Field label="Client order id">
               <input className="input" {...register('clientOrderId', { required: true })} />
             </Field>
-            <button className="primary-button" disabled={mutation.isPending} type="submit">
+            <button className="primary-button" disabled={mutation.isPending || !formReady} type="submit">
               <ArrowUpRight size={18} />
-              Submit order
+              {mutation.isPending ? 'Submitting order...' : 'Submit order'}
             </button>
-            {message && <ActionNotice tone={message.includes('failed') || message.includes('Only pending') ? 'warning' : 'success'} message={message} />}
+            {message && <ActionNotice tone={orderMessageIsWarning ? 'warning' : 'success'} message={message} />}
           </form>
         </Panel>
         <OrdersTable orders={orders} onCancel={(order) => cancelMutation.mutate(order)} />
@@ -878,10 +929,15 @@ function WatchlistPage() {
   const queryClient = useQueryClient()
   const [demoWatchlistState, setDemoWatchlistState] = useState(demoWatchlist)
   const [message, setMessage] = useState('')
-  const watchlistQuery = useQuery({ queryKey: ['watchlist'], queryFn: api.watchlist, placeholderData: demoWatchlist })
-  const stocksQuery = useQuery({ queryKey: ['stocks'], queryFn: api.stocks, placeholderData: demoStocks })
-  const stocks = stocksQuery.data ?? demoStocks
-  const watchlist = isDemoSession ? demoWatchlistState : (watchlistQuery.data ?? demoWatchlistState)
+  const watchlistQuery = useQuery({ queryKey: ['watchlist'], queryFn: api.watchlist, placeholderData: isDemoSession ? demoWatchlist : undefined })
+  const stocksQuery = useQuery({
+    queryKey: ['stocks'],
+    queryFn: api.stocks,
+    placeholderData: isDemoSession ? demoStocks : undefined,
+    refetchInterval: 60_000,
+  })
+  const stocks = isDemoSession ? demoStocks : (stocksQuery.data ?? [])
+  const watchlist = isDemoSession ? demoWatchlistState : (watchlistQuery.data ?? [])
   const { register, handleSubmit, reset } = useForm({ defaultValues: { symbol: 'GOOGL' } })
   const addMutation = useMutation({
     mutationFn: async ({ symbol }: { symbol: string }) => {
@@ -932,18 +988,25 @@ function WatchlistPage() {
         <Panel title="Add Symbol" icon={Plus}>
           <form className="space-y-4" onSubmit={handleSubmit((values) => addMutation.mutate(values))}>
             <Field label="Symbol">
-              <select className="input" {...register('symbol', { required: true })}>
-                {stocks.map((stock) => (
-                  <option key={stock.symbol} value={stock.symbol}>
-                    {stock.symbol}
-                  </option>
-                ))}
+              <select className="input" disabled={stocks.length === 0} {...register('symbol', { required: true })}>
+                {stocks.length === 0 ? (
+                  <option value="">Loading symbols...</option>
+                ) : (
+                  stocks.map((stock) => (
+                    <option key={stock.symbol} value={stock.symbol}>
+                      {stock.symbol}
+                    </option>
+                  ))
+                )}
               </select>
             </Field>
-            <button className="primary-button" type="submit">
+            <button className="primary-button" type="submit" disabled={stocks.length === 0 || addMutation.isPending}>
               <Plus size={18} />
               Add
             </button>
+            {stocksQuery.isError && (
+              <ActionNotice tone="warning" message={getApiErrorMessage(stocksQuery.error, 'Live stock prices are unavailable. Try again shortly.')} />
+            )}
             {message && <ActionNotice tone={message.includes('failed') ? 'warning' : 'success'} message={message} />}
           </form>
         </Panel>
