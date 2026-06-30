@@ -88,6 +88,12 @@ import type {
 
 const allocationColors = ['#47c7a1', '#e7b75f', '#6fb7d6', '#c17664', '#8abf72', '#b9a1e6']
 
+function mergeStocks(...groups: Stock[][]) {
+  const bySymbol = new Map<string, Stock>()
+  groups.flat().forEach((stock) => bySymbol.set(stock.symbol, stock))
+  return Array.from(bySymbol.values()).sort((a, b) => a.symbol.localeCompare(b.symbol))
+}
+
 function currency(value: number | undefined) {
   return new Intl.NumberFormat('en-US', {
     style: 'currency',
@@ -747,6 +753,8 @@ function TradingPage() {
   const { isDemoSession } = useAuth()
   const queryClient = useQueryClient()
   const [demoOrdersState, setDemoOrdersState] = useState<Order[]>(demoOrders)
+  const [stockChoices, setStockChoices] = useState<Stock[]>([])
+  const [symbolSearch, setSymbolSearch] = useState('AAPL')
   const [message, setMessage] = useState('')
   const portfoliosQuery = useQuery({ queryKey: ['portfolios'], queryFn: api.portfolios, placeholderData: isDemoSession ? [demoPortfolio] : undefined })
   const stocksQuery = useQuery({
@@ -763,7 +771,10 @@ function TradingPage() {
     enabled: isDemoSession || Boolean(selectedPortfolioId),
     placeholderData: isDemoSession ? pageOfOrders : undefined,
   })
-  const stocks = useMemo(() => (isDemoSession ? demoStocks : (stocksQuery.data ?? [])), [isDemoSession, stocksQuery.data])
+  const stocks = useMemo(
+    () => (isDemoSession ? mergeStocks(demoStocks, stockChoices) : mergeStocks(stocksQuery.data ?? [], stockChoices)),
+    [isDemoSession, stockChoices, stocksQuery.data],
+  )
   const orders = isDemoSession ? demoOrdersState : (ordersQuery.data?.content ?? [])
   const { register, handleSubmit, watch, reset, setValue } = useForm<OrderRequest>({
     defaultValues: {
@@ -776,11 +787,19 @@ function TradingPage() {
     },
   })
   const type = watch('type')
+  const side = watch('side')
   const symbol = watch('symbol')
+  const formPortfolioId = watch('portfolioId') || selectedPortfolioId
   const quantity = Number(watch('quantity') ?? 0)
-  const selectedStock = stocks.find((stock) => stock.symbol === symbol) ?? stocks[0]
+  const selectedPortfolio = portfolios.find((portfolio) => portfolio.id === formPortfolioId) ?? portfolios[0]
+  const selectedStock = stocks.find((stock) => stock.symbol === symbol) ?? (!symbol ? stocks[0] : undefined)
   const estimatedNotional = selectedStock ? selectedStock.lastPrice * quantity : 0
-  const formReady = isDemoSession || (Boolean(selectedPortfolioId) && Boolean(selectedStock) && !portfoliosQuery.isLoading && !stocksQuery.isLoading)
+  const estimatedFee = estimatedNotional > 0 ? Math.min(Math.max(estimatedNotional * 0.001, 1), 50) : 0
+  const buyingPower = selectedPortfolio?.cashBalance ?? 0
+  const estimatedCashAfterBuy = buyingPower - estimatedNotional - estimatedFee
+  const hasBuyingPower = side !== 'BUY' || estimatedCashAfterBuy >= 0
+  const accountReady = isDemoSession || (Boolean(selectedPortfolioId) && !portfoliosQuery.isLoading)
+  const formReady = accountReady && Boolean(selectedStock) && !stocksQuery.isLoading
 
   useEffect(() => {
     if (selectedPortfolioId) {
@@ -789,10 +808,37 @@ function TradingPage() {
   }, [selectedPortfolioId, setValue])
 
   useEffect(() => {
-    if (!selectedStock && stocks[0]) {
+    if (!symbol && stocks[0]) {
       setValue('symbol', stocks[0].symbol)
+      setSymbolSearch(stocks[0].symbol)
     }
-  }, [selectedStock, setValue, stocks])
+  }, [setValue, stocks, symbol])
+
+  const stockSearchMutation = useMutation({
+    mutationFn: async (query: string) => {
+      const trimmed = query.trim()
+      if (trimmed.length === 0) {
+        return []
+      }
+      if (isDemoSession) {
+        const normalized = trimmed.toUpperCase()
+        return demoStocks.filter(
+          (stock) => stock.symbol.includes(normalized) || stock.companyName.toUpperCase().includes(normalized),
+        )
+      }
+      return api.searchStocks(trimmed)
+    },
+    onSuccess: (results) => {
+      if (results.length === 0) {
+        setMessage('No matching live symbols found')
+        return
+      }
+      setStockChoices((current) => mergeStocks(current, results))
+      setSymbolSearch(results[0].symbol)
+      setValue('symbol', results[0].symbol)
+    },
+    onError: (error) => setMessage(getApiErrorMessage(error, 'Stock search failed. Try a ticker symbol like TSLA.')),
+  })
 
   const mutation = useMutation({
     mutationFn: async (request: OrderRequest) => {
@@ -817,6 +863,7 @@ function TradingPage() {
         }))
       }
       reset({ portfolioId: selectedPortfolioId ?? '', symbol: 'AAPL', side: 'BUY', type: 'MARKET', quantity: 5, clientOrderId: `web-${Date.now()}` })
+      setSymbolSearch('AAPL')
       void queryClient.invalidateQueries({ queryKey: ['orders'] })
       void queryClient.invalidateQueries({ queryKey: ['dashboard'] })
       void queryClient.invalidateQueries({ queryKey: ['portfolios'] })
@@ -842,9 +889,10 @@ function TradingPage() {
     },
     onError: () => setMessage('Only pending orders can be cancelled.'),
   })
-  const orderMessageIsWarning = ['failed', 'only pending', 'insufficient', 'unavailable', 'require', 'not found'].some((term) =>
+  const orderMessageIsWarning = ['failed', 'only pending', 'insufficient', 'unavailable', 'require', 'not found', 'no matching'].some((term) =>
     message.toLowerCase().includes(term),
   )
+  const symbolField = register('symbol', { required: true })
   return (
     <Page title="Trading" eyebrow={isDemoSession ? 'Demo equity order management' : 'Live equity order management'}>
       <div className="grid gap-4 xl:grid-cols-[0.72fr_1.28fr]">
@@ -861,7 +909,7 @@ function TradingPage() {
             )}
           >
             <Field label="Portfolio">
-              <select className="input" disabled={!formReady} {...register('portfolioId', { required: true })}>
+              <select className="input" disabled={!accountReady} {...register('portfolioId', { required: true })}>
                 {portfolios.length === 0 ? (
                   <option value="">Loading portfolios...</option>
                 ) : (
@@ -874,23 +922,55 @@ function TradingPage() {
               </select>
             </Field>
             <div className="grid grid-cols-2 gap-3">
-              <Field label="Symbol">
-                <select className="input" disabled={!formReady} {...register('symbol', { required: true })}>
-                  {stocks.length === 0 ? (
-                    <option value="">Loading symbols...</option>
-                  ) : (
-                    stocks.map((stock: Stock) => (
-                      <option key={stock.symbol} value={stock.symbol}>
-                        {stock.symbol}
-                      </option>
-                    ))
-                  )}
-                </select>
+              <Field label="Symbol search">
+                <div className="grid grid-cols-[minmax(0,1fr)_auto] gap-2">
+                  <input
+                    className="input"
+                    disabled={!accountReady}
+                    {...symbolField}
+                    value={symbolSearch}
+                    onChange={(event) => {
+                      const next = event.target.value.toUpperCase()
+                      setSymbolSearch(next)
+                      setValue('symbol', next, { shouldDirty: true, shouldValidate: true })
+                    }}
+                  />
+                  <button
+                    className="secondary-button px-3"
+                    disabled={!accountReady || stockSearchMutation.isPending || symbolSearch.trim().length === 0}
+                    type="button"
+                    onClick={() => stockSearchMutation.mutate(symbolSearch)}
+                    aria-label="Search symbols"
+                  >
+                    {stockSearchMutation.isPending ? <Loader2 className="animate-spin" size={18} /> : <Search size={18} />}
+                  </button>
+                </div>
               </Field>
               <Field label="Quantity">
                 <input className="input" min="0.000001" step="0.000001" type="number" {...register('quantity', { required: true, min: 0.000001, valueAsNumber: true })} />
               </Field>
             </div>
+            {stockChoices.length > 0 && (
+              <div className="grid gap-2">
+                {stockChoices.slice(0, 4).map((stock) => (
+                  <button
+                    key={stock.symbol}
+                    className="flex items-center justify-between gap-3 rounded border border-white/10 bg-[#11161b] px-3 py-2 text-left"
+                    type="button"
+                    onClick={() => {
+                      setSymbolSearch(stock.symbol)
+                      setValue('symbol', stock.symbol, { shouldDirty: true, shouldValidate: true })
+                    }}
+                  >
+                    <span>
+                      <span className="block text-sm font-semibold text-white">{stock.symbol}</span>
+                      <span className="block truncate text-xs text-slate-400">{stock.companyName}</span>
+                    </span>
+                    <span className="shrink-0 text-sm font-semibold tabular-nums text-emerald-200">{currency(stock.lastPrice)}</span>
+                  </button>
+                ))}
+              </div>
+            )}
             {stocksQuery.isError && (
               <ActionNotice tone="warning" message={getApiErrorMessage(stocksQuery.error, 'Live stock prices are unavailable. Try again shortly.')} />
             )}
@@ -898,9 +978,12 @@ function TradingPage() {
               <div className="rounded border border-white/10 bg-[#11161b] p-1">
                 <QuoteRow label={`${selectedStock.symbol} price`} value={currency(selectedStock.lastPrice)} />
                 <QuoteRow label="Estimated value" value={currency(estimatedNotional)} />
+                <QuoteRow label="Buying power" value={currency(buyingPower)} />
+                {side === 'BUY' && <QuoteRow label="Cash after order" value={currency(estimatedCashAfterBuy)} />}
                 <QuoteRow label="Quote updated" value={formatDate(selectedStock.updatedAt)} />
               </div>
             )}
+            {!hasBuyingPower && <ActionNotice tone="warning" message="Buying power is below the estimated order cost." />}
             <Segmented label="Side" options={['BUY', 'SELL']} field={register('side')} />
             <Segmented label="Order type" options={['MARKET', 'LIMIT']} field={register('type')} />
             {type === 'LIMIT' && (
@@ -911,7 +994,7 @@ function TradingPage() {
             <Field label="Client order id">
               <input className="input" {...register('clientOrderId', { required: true })} />
             </Field>
-            <button className="primary-button" disabled={mutation.isPending || !formReady} type="submit">
+            <button className="primary-button" disabled={mutation.isPending || !formReady || !hasBuyingPower} type="submit">
               <ArrowUpRight size={18} />
               {mutation.isPending ? 'Submitting order...' : 'Submit order'}
             </button>
@@ -928,6 +1011,8 @@ function WatchlistPage() {
   const { isDemoSession } = useAuth()
   const queryClient = useQueryClient()
   const [demoWatchlistState, setDemoWatchlistState] = useState(demoWatchlist)
+  const [stockChoices, setStockChoices] = useState<Stock[]>([])
+  const [symbolSearch, setSymbolSearch] = useState('GOOGL')
   const [message, setMessage] = useState('')
   const watchlistQuery = useQuery({ queryKey: ['watchlist'], queryFn: api.watchlist, placeholderData: isDemoSession ? demoWatchlist : undefined })
   const stocksQuery = useQuery({
@@ -936,23 +1021,50 @@ function WatchlistPage() {
     placeholderData: isDemoSession ? demoStocks : undefined,
     refetchInterval: 60_000,
   })
-  const stocks = isDemoSession ? demoStocks : (stocksQuery.data ?? [])
+  const stocks = isDemoSession ? mergeStocks(demoStocks, stockChoices) : mergeStocks(stocksQuery.data ?? [], stockChoices)
   const watchlist = isDemoSession ? demoWatchlistState : (watchlistQuery.data ?? [])
-  const { register, handleSubmit, reset } = useForm({ defaultValues: { symbol: 'GOOGL' } })
+  const { register, handleSubmit, reset, setValue } = useForm({ defaultValues: { symbol: 'GOOGL' } })
+  const stockSearchMutation = useMutation({
+    mutationFn: async (query: string) => {
+      const trimmed = query.trim()
+      if (trimmed.length === 0) {
+        return []
+      }
+      if (isDemoSession) {
+        const normalized = trimmed.toUpperCase()
+        return demoStocks.filter(
+          (stock) => stock.symbol.includes(normalized) || stock.companyName.toUpperCase().includes(normalized),
+        )
+      }
+      return api.searchStocks(trimmed)
+    },
+    onSuccess: (results) => {
+      if (results.length === 0) {
+        setMessage('No matching live symbols found')
+        return
+      }
+      setStockChoices((current) => mergeStocks(current, results))
+      setSymbolSearch(results[0].symbol)
+      setValue('symbol', results[0].symbol)
+    },
+    onError: (error) => setMessage(getApiErrorMessage(error, 'Stock search failed. Try a ticker symbol like TSLA.')),
+  })
   const addMutation = useMutation({
     mutationFn: async ({ symbol }: { symbol: string }) => {
+      const normalizedSymbol = symbol.trim().toUpperCase()
       if (isDemoSession) {
-        const stock = stocks.find((item) => item.symbol === symbol) ?? demoStocks[0]
-        const existing = demoWatchlistState.find((item) => item.stock.symbol === symbol)
+        const stock = stocks.find((item) => item.symbol === normalizedSymbol) ?? demoStocks[0]
+        const existing = demoWatchlistState.find((item) => item.stock.symbol === stock.symbol)
         if (existing) return existing
-        const item = { id: `demo-watch-${symbol}-${Date.now()}`, stock, createdAt: new Date().toISOString() }
+        const item = { id: `demo-watch-${stock.symbol}-${Date.now()}`, stock, createdAt: new Date().toISOString() }
         setDemoWatchlistState((current) => [item, ...current])
         return item
       }
-      return api.addWatchlist(symbol)
+      return api.addWatchlist(normalizedSymbol)
     },
     onSuccess: (item) => {
-      reset({ symbol: 'GOOGL' })
+      reset({ symbol: item.stock.symbol })
+      setSymbolSearch(item.stock.symbol)
       setMessage(`${item.stock.symbol} is on the watchlist`)
       if (!isDemoSession) {
         queryClient.setQueryData<WatchlistItem[]>(['watchlist'], (current) => {
@@ -987,27 +1099,58 @@ function WatchlistPage() {
       <div className="grid gap-4 xl:grid-cols-[0.62fr_1.38fr]">
         <Panel title="Add Symbol" icon={Plus}>
           <form className="space-y-4" onSubmit={handleSubmit((values) => addMutation.mutate(values))}>
-            <Field label="Symbol">
-              <select className="input" disabled={stocks.length === 0} {...register('symbol', { required: true })}>
-                {stocks.length === 0 ? (
-                  <option value="">Loading symbols...</option>
-                ) : (
-                  stocks.map((stock) => (
-                    <option key={stock.symbol} value={stock.symbol}>
-                      {stock.symbol}
-                    </option>
-                  ))
-                )}
-              </select>
+            <Field label="Symbol search">
+              <div className="grid grid-cols-[minmax(0,1fr)_auto] gap-2">
+                <input
+                  className="input"
+                  {...register('symbol', { required: true })}
+                  value={symbolSearch}
+                  onChange={(event) => {
+                    const next = event.target.value.toUpperCase()
+                    setSymbolSearch(next)
+                    setValue('symbol', next, { shouldDirty: true, shouldValidate: true })
+                  }}
+                />
+                <button
+                  className="secondary-button px-3"
+                  disabled={stockSearchMutation.isPending || symbolSearch.trim().length === 0}
+                  type="button"
+                  onClick={() => stockSearchMutation.mutate(symbolSearch)}
+                  aria-label="Search symbols"
+                >
+                  {stockSearchMutation.isPending ? <Loader2 className="animate-spin" size={18} /> : <Search size={18} />}
+                </button>
+              </div>
             </Field>
-            <button className="primary-button" type="submit" disabled={stocks.length === 0 || addMutation.isPending}>
+            {stockChoices.length > 0 && (
+              <div className="grid gap-2">
+                {stockChoices.slice(0, 4).map((stock) => (
+                  <button
+                    key={stock.symbol}
+                    className="flex items-center justify-between gap-3 rounded border border-white/10 bg-[#11161b] px-3 py-2 text-left"
+                    type="button"
+                    onClick={() => {
+                      setSymbolSearch(stock.symbol)
+                      setValue('symbol', stock.symbol, { shouldDirty: true, shouldValidate: true })
+                    }}
+                  >
+                    <span>
+                      <span className="block text-sm font-semibold text-white">{stock.symbol}</span>
+                      <span className="block truncate text-xs text-slate-400">{stock.companyName}</span>
+                    </span>
+                    <span className="shrink-0 text-sm font-semibold tabular-nums text-emerald-200">{currency(stock.lastPrice)}</span>
+                  </button>
+                ))}
+              </div>
+            )}
+            <button className="primary-button" type="submit" disabled={symbolSearch.trim().length === 0 || addMutation.isPending}>
               <Plus size={18} />
               Add
             </button>
             {stocksQuery.isError && (
               <ActionNotice tone="warning" message={getApiErrorMessage(stocksQuery.error, 'Live stock prices are unavailable. Try again shortly.')} />
             )}
-            {message && <ActionNotice tone={message.includes('failed') ? 'warning' : 'success'} message={message} />}
+            {message && <ActionNotice tone={['failed', 'no matching'].some((term) => message.toLowerCase().includes(term)) ? 'warning' : 'success'} message={message} />}
           </form>
         </Panel>
         <Panel title="Tracked Prices" icon={Eye}>

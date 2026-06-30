@@ -30,7 +30,7 @@ public class WatchlistService {
 
     @Transactional
     public WatchlistDtos.WatchlistResponse add(UserAccount user, WatchlistDtos.WatchlistRequest request) {
-        Stock stock = marketDataService.findStock(request.symbol());
+        Stock stock = marketDataService.findTradableStock(request.symbol());
         WatchlistItem item = watchlistItemRepository.findByUserAndStock(user, stock).orElseGet(() -> {
             WatchlistItem created = new WatchlistItem();
             created.setUser(user);

@@ -22,6 +22,16 @@ public class MarketController {
         return ApiResponse.ok("Stocks loaded", marketDataService.listStocks());
     }
 
+    @GetMapping("/stocks/search")
+    ApiResponse<List<MarketDtos.StockResponse>> search(@RequestParam String query) {
+        return ApiResponse.ok("Stock search loaded", marketDataService.searchStocks(query));
+    }
+
+    @GetMapping("/stocks/{symbol}")
+    ApiResponse<MarketDtos.StockResponse> quote(@PathVariable String symbol) {
+        return ApiResponse.ok("Stock quote loaded", marketDataService.quote(symbol));
+    }
+
     @GetMapping("/stocks/{symbol}/history")
     ApiResponse<List<MarketDtos.PricePoint>> history(@PathVariable String symbol, @RequestParam(defaultValue = "30") int days) {
         return ApiResponse.ok("Price history loaded", marketDataService.history(symbol, days));

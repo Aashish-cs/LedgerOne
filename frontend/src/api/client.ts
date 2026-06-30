@@ -75,6 +75,8 @@ export const api = {
   renamePortfolio: (id: string, name: string) => http.put<ApiResponse<Portfolio>>(`/portfolios/${id}`, { name }).then(unwrap),
   deletePortfolio: (id: string) => http.delete(`/portfolios/${id}`),
   stocks: () => http.get<ApiResponse<Stock[]>>('/market/stocks').then(unwrap),
+  searchStocks: (query: string) => http.get<ApiResponse<Stock[]>>('/market/stocks/search', { params: { query } }).then(unwrap),
+  quoteStock: (symbol: string) => http.get<ApiResponse<Stock>>(`/market/stocks/${encodeURIComponent(symbol)}`).then(unwrap),
   orders: (portfolioId: string) =>
     http.get<ApiResponse<PageResponse<Order>>>(`/portfolios/${portfolioId}/orders`, { params: { size: 20 } }).then(unwrap),
   placeOrder: (request: OrderRequest) => http.post<ApiResponse<Order>>('/orders', request).then(unwrap),
