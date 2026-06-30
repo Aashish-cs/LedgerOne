@@ -13,6 +13,7 @@ import java.net.http.HttpResponse;
 import java.nio.charset.StandardCharsets;
 import java.time.Duration;
 import java.time.Instant;
+import java.util.LinkedHashSet;
 import java.util.Locale;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
@@ -47,8 +48,31 @@ public class StockQuoteService {
     }
 
     private MarketQuote fetchQuote(String symbol) {
+        BadRequestException lastFailure = null;
+        for (String urlTemplate : quoteUrlTemplates()) {
+            try {
+                return fetchQuoteFromTemplate(symbol, urlTemplate);
+            } catch (BadRequestException exception) {
+                lastFailure = exception;
+            }
+        }
+        if (lastFailure != null) {
+            throw lastFailure;
+        }
+        throw new BadRequestException("Live price unavailable for " + symbol);
+    }
+
+    private LinkedHashSet<String> quoteUrlTemplates() {
+        LinkedHashSet<String> templates = new LinkedHashSet<>();
+        templates.add(properties.quoteUrlTemplate());
+        templates.add("https://api.nasdaq.com/api/quote/{symbol}/info?assetclass=stocks");
+        templates.add("https://query2.finance.yahoo.com/v8/finance/chart/{symbol}?interval=1m&range=1d");
+        return templates;
+    }
+
+    private MarketQuote fetchQuoteFromTemplate(String symbol, String urlTemplate) {
         String encoded = URLEncoder.encode(symbol, StandardCharsets.UTF_8);
-        URI uri = URI.create(properties.quoteUrlTemplate().replace("{symbol}", encoded));
+        URI uri = URI.create(urlTemplate.replace("{symbol}", encoded));
         HttpRequest request = HttpRequest.newBuilder(uri)
                 .timeout(Duration.ofSeconds(8))
                 .header("Accept", "application/json")
