@@ -10,7 +10,7 @@ Enterprise investment portfolio and order management platform built with Spring 
 
 LedgerOne simulates an internal investment management platform for portfolio operations, trading workflows, risk review, and audit visibility. It is designed as an enterprise-style full-stack project: backend rules and persistence are treated as the source of truth, while the frontend presents a quiet, operations-focused dashboard for repeated use.
 
-The project is free to run. It does not require paid brokerage or crypto APIs. The backend refreshes equity prices from Yahoo Finance's chart quote endpoint with a short server-side cache, and seed data remains available for local demos when live quotes are disabled.
+The project is free to run. It does not require paid brokerage or crypto APIs. The backend refreshes equity prices from Nasdaq's public quote endpoint with a short server-side cache, and seed data remains available for local demos when live quotes are disabled.
 
 ## Product Surface
 
@@ -102,7 +102,7 @@ Market data defaults:
 ```bash
 MARKET_LIVE_PRICES_ENABLED=true
 MARKET_QUOTE_CACHE_SECONDS=60
-MARKET_QUOTE_URL_TEMPLATE=https://query2.finance.yahoo.com/v8/finance/chart/{symbol}?interval=1m&range=1d
+MARKET_QUOTE_URL_TEMPLATE=https://api.nasdaq.com/api/quote/{symbol}/info?assetclass=stocks
 ```
 
 When live prices are enabled, the backend refreshes stock quotes before returning the stock list and before accepting an order. If the quote source is unavailable, order placement returns a visible API error instead of using a fake price. Set `MARKET_LIVE_PRICES_ENABLED=false` only for fully local offline demos.

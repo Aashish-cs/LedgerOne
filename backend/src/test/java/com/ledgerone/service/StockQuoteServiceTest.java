@@ -64,4 +64,37 @@ class StockQuoteServiceTest {
         assertThat(second).isEqualTo(first);
         assertThat(hits).hasValue(1);
     }
+
+    @Test
+    void quoteParsesNasdaqPublicQuoteResponse() throws Exception {
+        server = HttpServer.create(new InetSocketAddress("127.0.0.1", 0), 0);
+        server.createContext("/api/quote/AAPL/info", exchange -> {
+            byte[] response = """
+                    {
+                      "data": {
+                        "symbol": "AAPL",
+                        "primaryData": {
+                          "lastSalePrice": "$285.52",
+                          "lastTradeTimestamp": "Jun 30, 2026 10:50 AM ET"
+                        }
+                      }
+                    }
+                    """.getBytes(StandardCharsets.UTF_8);
+            exchange.getResponseHeaders().add("Content-Type", "application/json");
+            exchange.sendResponseHeaders(200, response.length);
+            exchange.getResponseBody().write(response);
+            exchange.close();
+        });
+        server.start();
+
+        int port = server.getAddress().getPort();
+        StockQuoteService service = new StockQuoteService(
+                new MarketQuoteProperties(true, 60, "http://127.0.0.1:" + port + "/api/quote/{symbol}/info?assetclass=stocks"),
+                new ObjectMapper());
+
+        MarketQuote quote = service.quote("AAPL");
+
+        assertThat(quote.price()).isEqualByComparingTo("285.5200");
+        assertThat(quote.source()).isEqualTo("Nasdaq public quote");
+    }
 }
