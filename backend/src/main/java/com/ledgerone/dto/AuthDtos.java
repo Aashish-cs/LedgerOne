@@ -5,6 +5,7 @@ import com.ledgerone.entity.RoleName;
 import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Size;
+import java.math.BigDecimal;
 import java.time.Instant;
 import java.util.Set;
 import java.util.UUID;
@@ -26,6 +27,7 @@ public final class AuthDtos {
             String email,
             String fullName,
             AccountStatus status,
+            BigDecimal accountCashBalance,
             Set<RoleName> roles,
             Instant createdAt) {}
 

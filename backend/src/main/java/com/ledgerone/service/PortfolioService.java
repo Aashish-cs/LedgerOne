@@ -7,14 +7,17 @@ import com.ledgerone.entity.Holding;
 import com.ledgerone.entity.Portfolio;
 import com.ledgerone.entity.UserAccount;
 import com.ledgerone.exception.BadRequestException;
+import com.ledgerone.exception.ConflictException;
 import com.ledgerone.exception.ResourceNotFoundException;
 import com.ledgerone.repository.HoldingRepository;
 import com.ledgerone.repository.PortfolioRepository;
+import com.ledgerone.repository.UserAccountRepository;
 import java.math.BigDecimal;
 import java.util.Comparator;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.UUID;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -25,6 +28,7 @@ import org.springframework.transaction.annotation.Transactional;
 public class PortfolioService {
     private final PortfolioRepository portfolioRepository;
     private final HoldingRepository holdingRepository;
+    private final UserAccountRepository userRepository;
     private final AuditService auditService;
 
     @Transactional(readOnly = true)
@@ -36,20 +40,39 @@ public class PortfolioService {
     }
 
     @Transactional
-    public PortfolioDtos.PortfolioResponse create(UserAccount user, PortfolioDtos.PortfolioRequest request) {
+    public PortfolioDtos.PortfolioResponse create(UserAccount user, PortfolioDtos.PortfolioCreateRequest request) {
+        String name = cleanName(request.name());
+        BigDecimal allocation = Money.money(request.initialAllocation());
+        if (allocation.compareTo(Money.ZERO) <= 0) {
+            throw new BadRequestException("Initial allocation must be greater than zero");
+        }
+        UserAccount managedUser = userRepository
+                .findByIdForUpdate(user.getId())
+                .orElseThrow(() -> new ResourceNotFoundException("Authenticated user not found"));
+        if (portfolioRepository.existsByUserAndActiveTrueAndNameIgnoreCase(managedUser, name)) {
+            throw new ConflictException("Portfolio name already exists");
+        }
+        if (Money.money(managedUser.getAccountCashBalance()).compareTo(allocation) < 0) {
+            throw new BadRequestException("Allocation exceeds available account cash");
+        }
+        managedUser.setAccountCashBalance(Money.money(managedUser.getAccountCashBalance().subtract(allocation)));
         Portfolio portfolio = new Portfolio();
-        portfolio.setUser(user);
-        portfolio.setName(request.name());
-        portfolio.setCashBalance(new BigDecimal("50000.0000"));
+        portfolio.setUser(managedUser);
+        portfolio.setName(name);
+        portfolio.setCashBalance(allocation);
         Portfolio saved = portfolioRepository.save(portfolio);
-        auditService.record(user, AuditAction.PORTFOLIO_UPDATE, "Portfolio created", saved.getName());
+        auditService.record(managedUser, AuditAction.PORTFOLIO_UPDATE, "Portfolio created", saved.getName());
         return toResponse(saved);
     }
 
     @Transactional
-    public PortfolioDtos.PortfolioResponse rename(UserAccount user, UUID portfolioId, PortfolioDtos.PortfolioRequest request) {
+    public PortfolioDtos.PortfolioResponse rename(UserAccount user, UUID portfolioId, PortfolioDtos.PortfolioRenameRequest request) {
         Portfolio portfolio = getOwnedPortfolio(user, portfolioId);
-        portfolio.setName(request.name());
+        String name = cleanName(request.name());
+        if (portfolioRepository.existsByUserAndActiveTrueAndNameIgnoreCaseAndIdNot(user, name, portfolioId)) {
+            throw new ConflictException("Portfolio name already exists");
+        }
+        portfolio.setName(name);
         auditService.record(user, AuditAction.PORTFOLIO_UPDATE, "Portfolio renamed", portfolio.getName());
         return toResponse(portfolio);
     }
@@ -61,6 +84,11 @@ public class PortfolioService {
         if (!holdings.isEmpty()) {
             throw new BadRequestException("Liquidate holdings before deleting a portfolio");
         }
+        UserAccount managedUser = userRepository
+                .findByIdForUpdate(user.getId())
+                .orElseThrow(() -> new ResourceNotFoundException("Authenticated user not found"));
+        managedUser.setAccountCashBalance(Money.money(managedUser.getAccountCashBalance().add(portfolio.getCashBalance())));
+        portfolio.setCashBalance(Money.ZERO);
         portfolio.setActive(false);
         auditService.record(user, AuditAction.PORTFOLIO_UPDATE, "Portfolio deleted", portfolio.getName());
     }
@@ -74,9 +102,13 @@ public class PortfolioService {
 
     @Transactional(readOnly = true)
     public Portfolio defaultPortfolio(UserAccount user) {
+        return findDefaultPortfolio(user).orElseThrow(() -> new ResourceNotFoundException("No active portfolio found"));
+    }
+
+    @Transactional(readOnly = true)
+    public Optional<Portfolio> findDefaultPortfolio(UserAccount user) {
         return portfolioRepository
-                .findFirstByUserAndActiveTrueOrderByCreatedAtAsc(user)
-                .orElseThrow(() -> new ResourceNotFoundException("No active portfolio found"));
+                .findFirstByUserAndActiveTrueOrderByCreatedAtAsc(user);
     }
 
     public PortfolioDtos.PortfolioResponse toResponse(Portfolio portfolio) {
@@ -134,5 +166,9 @@ public class PortfolioService {
                         entry.getKey(), Money.money(entry.getValue()), Money.percent(entry.getValue(), totalMarketValue)))
                 .sorted(Comparator.comparing(PortfolioDtos.AllocationSlice::value).reversed())
                 .toList();
+    }
+
+    private String cleanName(String name) {
+        return name == null ? "" : name.trim().replaceAll("\\s+", " ");
     }
 }

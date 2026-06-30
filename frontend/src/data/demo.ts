@@ -6,6 +6,7 @@ import type {
   Dashboard,
   Order,
   PageResponse,
+  PaperAccount,
   Portfolio,
   Stock,
   WatchlistItem,
@@ -24,6 +25,7 @@ export const demoAuth: AuthResponse = {
     email: 'user@ledgerone.com',
     fullName: 'Ashish Mishra',
     status: 'ACTIVE',
+    accountCashBalance: 12_086.04,
     roles: ['USER', 'ADMIN'],
     createdAt: daysAgo(30),
   },
@@ -122,6 +124,14 @@ export const demoPortfolio: Portfolio = {
   ],
   createdAt: daysAgo(28),
   updatedAt: now,
+}
+
+export const demoPaperAccount: PaperAccount = {
+  availableCash: 12_086.04,
+  portfolioCash: demoPortfolio.cashBalance,
+  marketValue: demoPortfolio.marketValue,
+  totalEquity: 100_000,
+  activePortfolioCount: 1,
 }
 
 export const demoOrders: Order[] = [

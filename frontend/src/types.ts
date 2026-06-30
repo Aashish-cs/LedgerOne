@@ -26,6 +26,7 @@ export interface UserPrincipal {
   email: string
   fullName: string
   status: AccountStatus
+  accountCashBalance: number
   roles: RoleName[]
   createdAt: string
 }
@@ -83,6 +84,14 @@ export interface Portfolio {
   updatedAt: string
 }
 
+export interface PaperAccount {
+  availableCash: number
+  portfolioCash: number
+  marketValue: number
+  totalEquity: number
+  activePortfolioCount: number
+}
+
 export interface Transaction {
   id: string
   orderId: string
@@ -105,7 +114,7 @@ export interface RiskAlert {
 }
 
 export interface Dashboard {
-  portfolioId: string
+  portfolioId?: string | null
   portfolioName: string
   portfolioValue: number
   cashBalance: number

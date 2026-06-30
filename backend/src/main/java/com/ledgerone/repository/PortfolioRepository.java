@@ -15,4 +15,8 @@ public interface PortfolioRepository extends JpaRepository<Portfolio, UUID> {
     Optional<Portfolio> findByIdAndUserAndActiveTrue(UUID id, UserAccount user);
 
     Optional<Portfolio> findFirstByUserAndActiveTrueOrderByCreatedAtAsc(UserAccount user);
+
+    boolean existsByUserAndActiveTrueAndNameIgnoreCase(UserAccount user, String name);
+
+    boolean existsByUserAndActiveTrueAndNameIgnoreCaseAndIdNot(UserAccount user, String name, UUID id);
 }

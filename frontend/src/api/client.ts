@@ -9,6 +9,7 @@ import type {
   Order,
   OrderRequest,
   PageResponse,
+  PaperAccount,
   Portfolio,
   RiskAlert,
   Stock,
@@ -70,8 +71,10 @@ export const api = {
     http
       .get<ApiResponse<Dashboard>>('/dashboard', { params: portfolioId ? { portfolioId } : undefined })
       .then(unwrap),
+  accountSummary: () => http.get<ApiResponse<PaperAccount>>('/account/summary').then(unwrap),
   portfolios: () => http.get<ApiResponse<Portfolio[]>>('/portfolios').then(unwrap),
-  createPortfolio: (name: string) => http.post<ApiResponse<Portfolio>>('/portfolios', { name }).then(unwrap),
+  createPortfolio: (name: string, initialAllocation: number) =>
+    http.post<ApiResponse<Portfolio>>('/portfolios', { name, initialAllocation }).then(unwrap),
   renamePortfolio: (id: string, name: string) => http.put<ApiResponse<Portfolio>>(`/portfolios/${id}`, { name }).then(unwrap),
   deletePortfolio: (id: string) => http.delete(`/portfolios/${id}`),
   stocks: () => http.get<ApiResponse<Stock[]>>('/market/stocks').then(unwrap),

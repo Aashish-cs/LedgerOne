@@ -15,6 +15,7 @@ import jakarta.persistence.ManyToMany;
 import jakarta.persistence.PrePersist;
 import jakarta.persistence.PreUpdate;
 import jakarta.persistence.Table;
+import java.math.BigDecimal;
 import java.time.Instant;
 import java.util.LinkedHashSet;
 import java.util.Set;
@@ -46,6 +47,9 @@ public class UserAccount {
 
     @Column(nullable = false)
     private boolean enabled = true;
+
+    @Column(nullable = false, precision = 19, scale = 4)
+    private BigDecimal accountCashBalance = BigDecimal.ZERO;
 
     @Column(nullable = false)
     private Instant createdAt;

@@ -33,14 +33,14 @@ public class PortfolioController {
     }
 
     @PostMapping
-    ResponseEntity<ApiResponse<PortfolioDtos.PortfolioResponse>> create(@Valid @RequestBody PortfolioDtos.PortfolioRequest request) {
+    ResponseEntity<ApiResponse<PortfolioDtos.PortfolioResponse>> create(@Valid @RequestBody PortfolioDtos.PortfolioCreateRequest request) {
         return ResponseEntity.status(HttpStatus.CREATED)
                 .body(ApiResponse.ok("Portfolio created", portfolioService.create(currentUser.entity(), request)));
     }
 
     @PutMapping("/{portfolioId}")
     ApiResponse<PortfolioDtos.PortfolioResponse> rename(
-            @PathVariable UUID portfolioId, @Valid @RequestBody PortfolioDtos.PortfolioRequest request) {
+            @PathVariable UUID portfolioId, @Valid @RequestBody PortfolioDtos.PortfolioRenameRequest request) {
         return ApiResponse.ok("Portfolio renamed", portfolioService.rename(currentUser.entity(), portfolioId, request));
     }
 

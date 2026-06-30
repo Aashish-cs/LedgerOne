@@ -1,6 +1,8 @@
 package com.ledgerone.dto;
 
 import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.NotNull;
+import jakarta.validation.constraints.Positive;
 import jakarta.validation.constraints.Size;
 import java.math.BigDecimal;
 import java.time.Instant;
@@ -10,7 +12,11 @@ import java.util.UUID;
 public final class PortfolioDtos {
     private PortfolioDtos() {}
 
-    public record PortfolioRequest(@NotBlank @Size(min = 2, max = 120) String name) {}
+    public record PortfolioCreateRequest(
+            @NotBlank @Size(min = 2, max = 120) String name,
+            @NotNull @Positive BigDecimal initialAllocation) {}
+
+    public record PortfolioRenameRequest(@NotBlank @Size(min = 2, max = 120) String name) {}
 
     public record HoldingResponse(
             UUID id,

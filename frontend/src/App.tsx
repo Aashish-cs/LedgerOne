@@ -63,6 +63,7 @@ import {
   demoAuditLogs,
   demoDashboard,
   demoNotifications,
+  demoPaperAccount,
   demoOrders,
   demoPortfolio,
   demoStocks,
@@ -80,6 +81,7 @@ import type {
   OrderStatus,
   OrderType,
   PageResponse,
+  PaperAccount,
   Portfolio,
   RiskAlert,
   Stock,
@@ -117,15 +119,15 @@ function classNames(...values: Array<string | false | undefined>) {
   return values.filter(Boolean).join(' ')
 }
 
-function demoPortfolioFromName(name: string): Portfolio {
+function demoPortfolioFromName(name: string, initialAllocation: number): Portfolio {
   const createdAt = new Date().toISOString()
   return {
     ...demoPortfolio,
     id: `demo-portfolio-${Date.now()}`,
     name,
-    cashBalance: 50_000,
+    cashBalance: initialAllocation,
     marketValue: 0,
-    totalValue: 50_000,
+    totalValue: initialAllocation,
     realizedProfit: 0,
     unrealizedProfit: 0,
     holdings: [],
@@ -557,22 +559,52 @@ function PortfolioPage() {
   const { isDemoSession } = useAuth()
   const queryClient = useQueryClient()
   const [demoPortfolios, setDemoPortfolios] = useState<Portfolio[]>([demoPortfolio])
+  const [demoAvailableCash, setDemoAvailableCash] = useState(demoPaperAccount.availableCash)
   const [message, setMessage] = useState('')
   const portfoliosQuery = useQuery({ queryKey: ['portfolios'], queryFn: api.portfolios, placeholderData: isDemoSession ? [demoPortfolio] : undefined })
+  const accountQuery = useQuery({
+    queryKey: ['account-summary'],
+    queryFn: api.accountSummary,
+    enabled: !isDemoSession,
+    placeholderData: isDemoSession ? demoPaperAccount : undefined,
+  })
   const portfolios = isDemoSession ? demoPortfolios : (portfoliosQuery.data ?? [])
-  const { register, handleSubmit, reset } = useForm({ defaultValues: { name: '' } })
+  const demoAccount = useMemo<PaperAccount>(() => {
+    const portfolioCash = demoPortfolios.reduce((sum, portfolio) => sum + portfolio.cashBalance, 0)
+    const marketValue = demoPortfolios.reduce((sum, portfolio) => sum + portfolio.marketValue, 0)
+    return {
+      availableCash: demoAvailableCash,
+      portfolioCash,
+      marketValue,
+      totalEquity: demoAvailableCash + portfolioCash + marketValue,
+      activePortfolioCount: demoPortfolios.length,
+    }
+  }, [demoAvailableCash, demoPortfolios])
+  const account = isDemoSession ? demoAccount : accountQuery.data
+  const { register, handleSubmit, reset } = useForm({ defaultValues: { name: '', initialAllocation: 10_000 } })
   const createMutation = useMutation({
-    mutationFn: async ({ name }: { name: string }) => {
+    mutationFn: async ({ name, initialAllocation }: { name: string; initialAllocation: number }) => {
+      const allocation = Number(initialAllocation)
       if (isDemoSession) {
-        const created = demoPortfolioFromName(name)
+        if (allocation <= 0) {
+          throw new Error('Initial allocation must be greater than zero')
+        }
+        if (allocation > demoAvailableCash) {
+          throw new Error('Allocation exceeds available account cash')
+        }
+        if (demoPortfolios.some((portfolio) => portfolio.name.toLowerCase() === name.trim().toLowerCase())) {
+          throw new Error('Portfolio name already exists')
+        }
+        const created = demoPortfolioFromName(name.trim(), allocation)
+        setDemoAvailableCash((current) => current - allocation)
         setDemoPortfolios((current) => [created, ...current])
         return created
       }
-      return api.createPortfolio(name)
+      return api.createPortfolio(name, allocation)
     },
     onSuccess: (portfolio) => {
-      reset()
-      setMessage(`Portfolio "${portfolio.name}" is ready`)
+      reset({ name: '', initialAllocation: 10_000 })
+      setMessage(`Portfolio "${portfolio.name}" funded with ${currency(portfolio.cashBalance)}`)
       if (!isDemoSession) {
         queryClient.setQueryData<Portfolio[]>(['portfolios'], (current) => {
           const existing = current ?? []
@@ -580,8 +612,9 @@ function PortfolioPage() {
         })
       }
       void queryClient.invalidateQueries({ queryKey: ['portfolios'] })
+      void queryClient.invalidateQueries({ queryKey: ['account-summary'] })
     },
-    onError: () => setMessage('Portfolio request failed. Check API access or try demo mode.'),
+    onError: (error) => setMessage(getApiErrorMessage(error, 'Portfolio request failed')),
   })
   const renameMutation = useMutation({
     mutationFn: async ({ id, name }: { id: string; name: string }) => {
@@ -619,10 +652,14 @@ function PortfolioPage() {
     },
     onSuccess: (portfolio) => {
       setMessage(`Portfolio "${portfolio.name}" deleted`)
+      if (isDemoSession) {
+        setDemoAvailableCash((current) => current + portfolio.cashBalance)
+      }
       if (!isDemoSession) {
         queryClient.setQueryData<Portfolio[]>(['portfolios'], (current) => current?.filter((item) => item.id !== portfolio.id) ?? current)
       }
       void queryClient.invalidateQueries({ queryKey: ['portfolios'] })
+      void queryClient.invalidateQueries({ queryKey: ['account-summary'] })
     },
     onError: (error) => setMessage(error instanceof Error ? error.message : 'Delete failed'),
   })
@@ -631,14 +668,39 @@ function PortfolioPage() {
       <div className="grid gap-4 xl:grid-cols-[0.72fr_1.28fr]">
         <Panel title="Create Portfolio" icon={Plus}>
           <form className="space-y-4" onSubmit={handleSubmit((values) => createMutation.mutate(values))}>
+            <div className="grid gap-3 sm:grid-cols-2">
+              <MiniStat label="Available Cash" value={currency(account?.availableCash)} />
+              <MiniStat label="Total Equity" value={currency(account?.totalEquity)} />
+              <MiniStat label="Portfolio Cash" value={currency(account?.portfolioCash)} />
+              <MiniStat label="Market Value" value={currency(account?.marketValue)} />
+            </div>
             <Field label="Portfolio name">
               <input className="input" {...register('name', { required: true, minLength: 2 })} placeholder="Long Horizon Equity" />
+            </Field>
+            <Field label="Initial allocation">
+              <input
+                className="input"
+                type="number"
+                min="1"
+                max={account?.availableCash ?? undefined}
+                step="0.01"
+                {...register('initialAllocation', { required: true, min: 1, valueAsNumber: true })}
+              />
             </Field>
             <button className="primary-button" type="submit" disabled={createMutation.isPending}>
               <Plus size={18} />
               Create
             </button>
-            {message && <ActionNotice tone={message.includes('failed') || message.includes('Liquidate') ? 'warning' : 'success'} message={message} />}
+            {message && (
+              <ActionNotice
+                tone={
+                  message.includes('failed') || message.includes('Liquidate') || message.includes('exceeds') || message.includes('exists')
+                    ? 'warning'
+                    : 'success'
+                }
+                message={message}
+              />
+            )}
           </form>
         </Panel>
         <div className="space-y-4">

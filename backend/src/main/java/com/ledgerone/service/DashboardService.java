@@ -18,6 +18,7 @@ import java.time.Instant;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
+import java.util.Optional;
 import java.util.UUID;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -36,9 +37,13 @@ public class DashboardService {
 
     @Transactional(readOnly = true)
     public DashboardDtos.DashboardResponse dashboard(UserAccount user, UUID requestedPortfolioId) {
-        Portfolio portfolio = requestedPortfolioId == null
-                ? portfolioService.defaultPortfolio(user)
-                : portfolioService.getOwnedPortfolio(user, requestedPortfolioId);
+        Optional<Portfolio> selectedPortfolio = requestedPortfolioId == null
+                ? portfolioService.findDefaultPortfolio(user)
+                : Optional.of(portfolioService.getOwnedPortfolio(user, requestedPortfolioId));
+        if (selectedPortfolio.isEmpty()) {
+            return accountOnlyDashboard(user);
+        }
+        Portfolio portfolio = selectedPortfolio.get();
         PortfolioDtos.PortfolioResponse portfolioResponse = portfolioService.toResponse(portfolio);
         RiskDtos.RiskSummaryResponse risk = riskService.evaluate(user, portfolio.getId());
         List<DashboardDtos.PerformancePoint> performance = performance(portfolio);
@@ -74,6 +79,31 @@ public class DashboardService {
                 performance,
                 recentTransactions,
                 risk.alerts());
+    }
+
+    private DashboardDtos.DashboardResponse accountOnlyDashboard(UserAccount user) {
+        BigDecimal availableCash = Money.money(user.getAccountCashBalance());
+        return new DashboardDtos.DashboardResponse(
+                null,
+                "Paper Trading Account",
+                availableCash,
+                availableCash,
+                Money.ZERO,
+                Money.ZERO,
+                Money.ZERO,
+                0,
+                0,
+                List.of(
+                        new DashboardDtos.MetricCard("Available Cash", availableCash, BigDecimal.ZERO),
+                        new DashboardDtos.MetricCard("Portfolio Value", Money.ZERO, BigDecimal.ZERO),
+                        new DashboardDtos.MetricCard("Daily Profit", Money.ZERO, BigDecimal.ZERO),
+                        new DashboardDtos.MetricCard("Monthly Profit", Money.ZERO, BigDecimal.ZERO),
+                        new DashboardDtos.MetricCard("Open Orders", BigDecimal.ZERO, BigDecimal.ZERO),
+                        new DashboardDtos.MetricCard("Risk Score", BigDecimal.ZERO, BigDecimal.ZERO)),
+                List.of(),
+                List.of(new DashboardDtos.PerformancePoint(Instant.now(), availableCash)),
+                List.of(),
+                List.of());
     }
 
     private List<DashboardDtos.PerformancePoint> performance(Portfolio portfolio) {
