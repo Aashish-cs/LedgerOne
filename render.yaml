@@ -21,6 +21,8 @@ services:
         value: "true"
       - key: MARKET_QUOTE_CACHE_SECONDS
         value: "60"
+      - key: FINNHUB_API_KEY
+        sync: false
       - key: MARKET_QUOTE_URL_TEMPLATE
         value: "https://api.nasdaq.com/api/quote/{symbol}/info?assetclass=stocks"
       - key: ACCESS_TOKEN_MINUTES

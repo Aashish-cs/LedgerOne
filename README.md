@@ -102,10 +102,12 @@ Market data defaults:
 ```bash
 MARKET_LIVE_PRICES_ENABLED=true
 MARKET_QUOTE_CACHE_SECONDS=60
+FINNHUB_API_KEY=
+FINNHUB_BASE_URL=https://finnhub.io/api/v1
 MARKET_QUOTE_URL_TEMPLATE=https://api.nasdaq.com/api/quote/{symbol}/info?assetclass=stocks
 ```
 
-When live prices are enabled, the backend refreshes stock quotes before returning the stock list and before accepting an order. If the quote source is unavailable, order placement returns a visible API error instead of using a fake price. Set `MARKET_LIVE_PRICES_ENABLED=false` only for fully local offline demos.
+When live prices are enabled, the backend refreshes stock quotes before returning the stock list and before accepting an order. If `FINNHUB_API_KEY` is configured, Finnhub is used first for quotes, symbol search, and profile metadata. Nasdaq/Yahoo public quote providers remain as graceful fallback sources so local demos still work without a secret. If every quote source is unavailable, order placement returns a visible API error instead of using a fake price. Set `MARKET_LIVE_PRICES_ENABLED=false` only for fully local offline demos.
 
 ## Verification
 

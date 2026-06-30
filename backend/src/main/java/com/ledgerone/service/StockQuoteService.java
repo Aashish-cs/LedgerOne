@@ -19,6 +19,8 @@ import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.Optional;
+import java.util.StringJoiner;
 import java.util.concurrent.ConcurrentHashMap;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -29,6 +31,7 @@ public class StockQuoteService {
     private final MarketQuoteProperties properties;
     private final ObjectMapper objectMapper;
     private final Map<String, CachedQuote> cache = new ConcurrentHashMap<>();
+    private final Map<String, CachedProfile> profileCache = new ConcurrentHashMap<>();
     private final HttpClient httpClient = HttpClient.newBuilder().connectTimeout(Duration.ofSeconds(5)).build();
 
     public boolean livePricesEnabled() {
@@ -59,6 +62,10 @@ public class StockQuoteService {
             return List.of();
         }
         int boundedLimit = Math.max(1, Math.min(limit, 10));
+        List<MarketSearchResult> finnhubResults = searchFinnhub(normalizedQuery);
+        if (!finnhubResults.isEmpty()) {
+            return finnhubResults.stream().limit(boundedLimit).toList();
+        }
         Map<String, MarketSearchResult> results = new LinkedHashMap<>();
         searchNasdaq(normalizedQuery).forEach(result -> results.putIfAbsent(result.symbol(), result));
         searchYahoo(normalizedQuery).forEach(result -> results.putIfAbsent(result.symbol(), result));
@@ -67,6 +74,13 @@ public class StockQuoteService {
 
     private MarketQuote fetchQuote(String symbol) {
         BadRequestException lastFailure = null;
+        if (finnhubConfigured()) {
+            try {
+                return fetchFinnhubQuote(symbol);
+            } catch (BadRequestException exception) {
+                lastFailure = exception;
+            }
+        }
         for (String urlTemplate : quoteUrlTemplates()) {
             try {
                 return fetchQuoteFromTemplate(symbol, urlTemplate);
@@ -78,6 +92,28 @@ public class StockQuoteService {
             throw lastFailure;
         }
         throw new BadRequestException("Live price unavailable for " + symbol);
+    }
+
+    private MarketQuote fetchFinnhubQuote(String symbol) {
+        URI uri = finnhubUri("/quote", Map.of("symbol", symbol));
+        try {
+            JsonNode root = objectMapper.readTree(getJson(uri));
+            JsonNode currentPrice = root.path("c");
+            if (!currentPrice.isNumber() || currentPrice.decimalValue().compareTo(BigDecimal.ZERO) <= 0) {
+                throw new BadRequestException("Finnhub price unavailable for " + symbol);
+            }
+            long timestamp = root.path("t").asLong(Instant.now().getEpochSecond());
+            Optional<FinnhubProfile> profile = fetchFinnhubProfile(symbol);
+            return new MarketQuote(
+                    symbol,
+                    Money.money(currentPrice.decimalValue()),
+                    timestamp > 0 ? Instant.ofEpochSecond(timestamp) : Instant.now(),
+                    "Finnhub quote",
+                    profile.map(FinnhubProfile::name).orElse(symbol),
+                    profile.map(FinnhubProfile::industry).orElse("Equity"));
+        } catch (IOException exception) {
+            throw new BadRequestException("Finnhub price unavailable for " + symbol);
+        }
     }
 
     private LinkedHashSet<String> quoteUrlTemplates() {
@@ -127,6 +163,35 @@ public class StockQuoteService {
         }
     }
 
+    private List<MarketSearchResult> searchFinnhub(String query) {
+        if (!finnhubConfigured()) {
+            return List.of();
+        }
+        URI uri = finnhubUri("/search", Map.of("q", query));
+        try {
+            JsonNode results = objectMapper.readTree(getJson(uri)).path("result");
+            if (!results.isArray()) {
+                return List.of();
+            }
+            List<MarketSearchResult> parsed = new ArrayList<>();
+            for (JsonNode item : results) {
+                String type = item.path("type").asText("");
+                if (!type.isBlank() && !type.toLowerCase(Locale.US).contains("stock") && !type.equalsIgnoreCase("Equity")) {
+                    continue;
+                }
+                String symbol = normalizeSymbol(firstNonBlank(item.path("symbol").asText(), item.path("displaySymbol").asText()));
+                if (symbol.isBlank() || !symbol.matches("[A-Z][A-Z0-9.-]{0,9}")) {
+                    continue;
+                }
+                String name = cleanCompanyName(firstNonBlank(item.path("description").asText(), symbol));
+                parsed.add(new MarketSearchResult(symbol, name, firstNonBlank(type, "Equity"), "Finnhub"));
+            }
+            return parsed;
+        } catch (RuntimeException | IOException exception) {
+            return List.of();
+        }
+    }
+
     private List<MarketSearchResult> searchYahoo(String query) {
         URI uri = URI.create("https://query2.finance.yahoo.com/v1/finance/search?q=" + encode(query) + "&quotesCount=10&newsCount=0");
         try {
@@ -165,6 +230,9 @@ public class StockQuoteService {
                 .build();
         try {
             HttpResponse<String> response = httpClient.send(request, HttpResponse.BodyHandlers.ofString());
+            if (response.statusCode() == 429) {
+                throw new BadRequestException("Market data rate limit reached");
+            }
             if (response.statusCode() < 200 || response.statusCode() >= 300) {
                 throw new BadRequestException("Live market data unavailable");
             }
@@ -174,6 +242,31 @@ public class StockQuoteService {
         } catch (InterruptedException exception) {
             Thread.currentThread().interrupt();
             throw new BadRequestException("Live market data unavailable");
+        }
+    }
+
+    private Optional<FinnhubProfile> fetchFinnhubProfile(String symbol) {
+        if (!finnhubConfigured()) {
+            return Optional.empty();
+        }
+        Instant now = Instant.now();
+        CachedProfile cached = profileCache.get(symbol);
+        if (cached != null && cached.expiresAt().isAfter(now)) {
+            return cached.profile();
+        }
+        URI uri = finnhubUri("/stock/profile2", Map.of("symbol", symbol));
+        try {
+            JsonNode root = objectMapper.readTree(getJson(uri));
+            String name = cleanCompanyName(firstNonBlank(root.path("name").asText(), root.path("ticker").asText(), symbol));
+            String industry = firstNonBlank(root.path("finnhubIndustry").asText(), "Equity");
+            Optional<FinnhubProfile> profile = name.equals("Unknown")
+                    ? Optional.empty()
+                    : Optional.of(new FinnhubProfile(name, industry));
+            profileCache.put(symbol, new CachedProfile(profile, now.plus(Duration.ofHours(6))));
+            return profile;
+        } catch (RuntimeException | IOException exception) {
+            profileCache.put(symbol, new CachedProfile(Optional.empty(), now.plus(Duration.ofMinutes(15))));
+            return Optional.empty();
         }
     }
 
@@ -234,6 +327,17 @@ public class StockQuoteService {
         return URLEncoder.encode(value, StandardCharsets.UTF_8);
     }
 
+    private boolean finnhubConfigured() {
+        return properties.finnhubApiKey() != null && !properties.finnhubApiKey().isBlank();
+    }
+
+    private URI finnhubUri(String path, Map<String, String> params) {
+        StringJoiner query = new StringJoiner("&");
+        params.forEach((key, value) -> query.add(encode(key) + "=" + encode(value)));
+        query.add("token=" + encode(properties.finnhubApiKey()));
+        return URI.create(properties.finnhubBaseUrl() + path + "?" + query);
+    }
+
     private String cleanCompanyName(String value) {
         return firstNonBlank(value, "Unknown")
                 .replace("Class A Common Stock", "Class A")
@@ -253,4 +357,8 @@ public class StockQuoteService {
     }
 
     private record CachedQuote(MarketQuote quote, Instant expiresAt) {}
+
+    private record CachedProfile(Optional<FinnhubProfile> profile, Instant expiresAt) {}
+
+    private record FinnhubProfile(String name, String industry) {}
 }

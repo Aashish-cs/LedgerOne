@@ -38,6 +38,8 @@ ledgerone:
     quotes:
       enabled: ${MARKET_LIVE_PRICES_ENABLED:true}
       cache-seconds: ${MARKET_QUOTE_CACHE_SECONDS:60}
+      finnhub-api-key: ${FINNHUB_API_KEY:}
+      finnhub-base-url: ${FINNHUB_BASE_URL:https://finnhub.io/api/v1}
       quote-url-template: ${MARKET_QUOTE_URL_TEMPLATE:https://api.nasdaq.com/api/quote/{symbol}/info?assetclass=stocks}
 
 springdoc:

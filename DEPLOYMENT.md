@@ -33,6 +33,14 @@ https://YOUR-RENDER-SERVICE.onrender.com/api/system/status
 https://YOUR-RENDER-SERVICE.onrender.com/swagger-ui.html
 ```
 
+Set the Finnhub key in Render only:
+
+```text
+FINNHUB_API_KEY=your_finnhub_key
+```
+
+Do not add the real key to Vercel, React, GitHub, or `.env.example`. The React app calls the Spring Boot API, and Spring Boot calls Finnhub.
+
 ## 2. Deploy Frontend On Vercel
 
 Create a Vercel project from the same GitHub repo.
@@ -86,5 +94,5 @@ admin@ledgerone.com / Admin123!
 ## Notes
 
 - Render free services can sleep after inactivity, so the first API request may be slow.
-- The app uses a self-hosted API and simulated market data. No paid market-data API is required.
+- The app uses a self-hosted API. Finnhub is supported for live quotes when `FINNHUB_API_KEY` is set, with public quote fallbacks for local demos.
 - The backend accepts Render's managed Postgres `DATABASE_URL` and converts it to Spring's JDBC format at startup.
