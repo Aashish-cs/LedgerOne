@@ -816,6 +816,7 @@ function TradingPage() {
   const queryClient = useQueryClient()
   const [demoOrdersState, setDemoOrdersState] = useState<Order[]>(demoOrders)
   const [stockChoices, setStockChoices] = useState<Stock[]>([])
+  const [marketResults, setMarketResults] = useState<Stock[] | null>(null)
   const [symbolSearch, setSymbolSearch] = useState('AAPL')
   const [message, setMessage] = useState('')
   const portfoliosQuery = useQuery({ queryKey: ['portfolios'], queryFn: api.portfolios, placeholderData: isDemoSession ? [demoPortfolio] : undefined })
@@ -837,6 +838,7 @@ function TradingPage() {
     () => (isDemoSession ? mergeStocks(demoStocks, stockChoices) : mergeStocks(stocksQuery.data ?? [], stockChoices)),
     [isDemoSession, stockChoices, stocksQuery.data],
   )
+  const marketStocks = marketResults ?? stocks
   const orders = isDemoSession ? demoOrdersState : (ordersQuery.data?.content ?? [])
   const { register, handleSubmit, watch, reset, setValue } = useForm<OrderRequest>({
     defaultValues: {
@@ -886,6 +888,7 @@ function TradingPage() {
     mutationFn: async (query: string) => {
       const trimmed = query.trim()
       if (trimmed.length === 0) {
+        setMarketResults(null)
         return []
       }
       if (isDemoSession) {
@@ -898,9 +901,11 @@ function TradingPage() {
     },
     onSuccess: (results) => {
       if (results.length === 0) {
+        setMarketResults([])
         setMessage('No matching live symbols found')
         return
       }
+      setMarketResults(results)
       setStockChoices((current) => mergeStocks(current, results))
       chooseStock(results[0], 'BUY')
     },
@@ -931,6 +936,7 @@ function TradingPage() {
       }
       reset({ portfolioId: selectedPortfolioId ?? '', symbol: 'AAPL', side: 'BUY', type: 'MARKET', quantity: 5, clientOrderId: `web-${Date.now()}` })
       setSymbolSearch('AAPL')
+      setMarketResults(null)
       void queryClient.invalidateQueries({ queryKey: ['orders'] })
       void queryClient.invalidateQueries({ queryKey: ['dashboard'] })
       void queryClient.invalidateQueries({ queryKey: ['portfolios'] })
@@ -965,7 +971,7 @@ function TradingPage() {
       <div className="grid gap-4 xl:grid-cols-[0.9fr_1.1fr]">
         <div className="grid gap-4">
           <MarketBrowser
-            stocks={stocks}
+            stocks={marketStocks}
             selectedSymbol={symbol}
             searchValue={symbolSearch}
             searchPending={stockSearchMutation.isPending}
