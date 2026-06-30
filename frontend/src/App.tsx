@@ -800,6 +800,12 @@ function TradingPage() {
   const hasBuyingPower = side !== 'BUY' || estimatedCashAfterBuy >= 0
   const accountReady = isDemoSession || (Boolean(selectedPortfolioId) && !portfoliosQuery.isLoading)
   const formReady = accountReady && Boolean(selectedStock) && !stocksQuery.isLoading
+  const chooseStock = (stock: Stock, nextSide: OrderSide = side) => {
+    setStockChoices((current) => mergeStocks(current, [stock]))
+    setSymbolSearch(stock.symbol)
+    setValue('symbol', stock.symbol, { shouldDirty: true, shouldValidate: true })
+    setValue('side', nextSide, { shouldDirty: true })
+  }
 
   useEffect(() => {
     if (selectedPortfolioId) {
@@ -834,8 +840,7 @@ function TradingPage() {
         return
       }
       setStockChoices((current) => mergeStocks(current, results))
-      setSymbolSearch(results[0].symbol)
-      setValue('symbol', results[0].symbol)
+      chooseStock(results[0], 'BUY')
     },
     onError: (error) => setMessage(getApiErrorMessage(error, 'Stock search failed. Try a ticker symbol like TSLA.')),
   })
@@ -895,113 +900,92 @@ function TradingPage() {
   const symbolField = register('symbol', { required: true })
   return (
     <Page title="Trading" eyebrow={isDemoSession ? 'Demo equity order management' : 'Live equity order management'}>
-      <div className="grid gap-4 xl:grid-cols-[0.72fr_1.28fr]">
-        <Panel title="New Order" icon={CircleDollarSign}>
-          <form
-            className="grid gap-4"
-            onSubmit={handleSubmit((values) =>
-              mutation.mutate({
-                ...values,
-                quantity: Number(values.quantity),
-                limitPrice: values.type === 'LIMIT' ? Number(values.limitPrice) : undefined,
-                clientOrderId: values.clientOrderId || `web-${Date.now()}`,
-              }),
-            )}
-          >
-            <Field label="Portfolio">
-              <select className="input" disabled={!accountReady} {...register('portfolioId', { required: true })}>
-                {portfolios.length === 0 ? (
-                  <option value="">Loading portfolios...</option>
-                ) : (
-                  portfolios.map((portfolio) => (
-                    <option key={portfolio.id} value={portfolio.id}>
-                      {portfolio.name}
-                    </option>
-                  ))
-                )}
-              </select>
-            </Field>
-            <div className="grid grid-cols-2 gap-3">
-              <Field label="Symbol search">
-                <div className="grid grid-cols-[minmax(0,1fr)_auto] gap-2">
-                  <input
-                    className="input"
-                    disabled={!accountReady}
-                    {...symbolField}
-                    value={symbolSearch}
-                    onChange={(event) => {
-                      const next = event.target.value.toUpperCase()
-                      setSymbolSearch(next)
-                      setValue('symbol', next, { shouldDirty: true, shouldValidate: true })
-                    }}
-                  />
-                  <button
-                    className="secondary-button px-3"
-                    disabled={!accountReady || stockSearchMutation.isPending || symbolSearch.trim().length === 0}
-                    type="button"
-                    onClick={() => stockSearchMutation.mutate(symbolSearch)}
-                    aria-label="Search symbols"
-                  >
-                    {stockSearchMutation.isPending ? <Loader2 className="animate-spin" size={18} /> : <Search size={18} />}
-                  </button>
+      <div className="grid gap-4 xl:grid-cols-[0.9fr_1.1fr]">
+        <div className="grid gap-4">
+          <MarketBrowser
+            stocks={stocks}
+            selectedSymbol={symbol}
+            searchValue={symbolSearch}
+            searchPending={stockSearchMutation.isPending}
+            onSearchChange={(value) => setSymbolSearch(value.toUpperCase())}
+            onSearch={() => stockSearchMutation.mutate(symbolSearch)}
+            onSelect={(stock) => chooseStock(stock)}
+            onBuy={(stock) => chooseStock(stock, 'BUY')}
+          />
+          <Panel title="New Order" icon={CircleDollarSign}>
+            <form
+              className="grid gap-4"
+              onSubmit={handleSubmit((values) =>
+                mutation.mutate({
+                  ...values,
+                  quantity: Number(values.quantity),
+                  limitPrice: values.type === 'LIMIT' ? Number(values.limitPrice) : undefined,
+                  clientOrderId: values.clientOrderId || `web-${Date.now()}`,
+                }),
+              )}
+            >
+              <Field label="Portfolio">
+                <select className="input" disabled={!accountReady} {...register('portfolioId', { required: true })}>
+                  {portfolios.length === 0 ? (
+                    <option value="">Loading portfolios...</option>
+                  ) : (
+                    portfolios.map((portfolio) => (
+                      <option key={portfolio.id} value={portfolio.id}>
+                        {portfolio.name}
+                      </option>
+                    ))
+                  )}
+                </select>
+              </Field>
+              <div className="grid grid-cols-2 gap-3">
+                <Field label="Selected symbol">
+                  <input className="input" readOnly {...symbolField} value={symbol ?? ''} />
+                </Field>
+                <Field label="Quantity">
+                  <input className="input" min="0.000001" step="0.000001" type="number" {...register('quantity', { required: true, min: 0.000001, valueAsNumber: true })} />
+                </Field>
+              </div>
+              {stocksQuery.isError && (
+                <ActionNotice tone="warning" message={getApiErrorMessage(stocksQuery.error, 'Live stock prices are unavailable. Try again shortly.')} />
+              )}
+              {selectedStock && (
+                <div className="rounded border border-white/10 bg-[#11161b] p-1">
+                  <QuoteRow label={`${selectedStock.symbol} price`} value={currency(selectedStock.lastPrice)} />
+                  <QuoteRow label="Estimated value" value={currency(estimatedNotional)} />
+                  <QuoteRow label="Buying power" value={currency(buyingPower)} />
+                  {side === 'BUY' && <QuoteRow label="Cash after order" value={currency(estimatedCashAfterBuy)} />}
+                  <QuoteRow label="Quote updated" value={formatDate(selectedStock.updatedAt)} />
                 </div>
+              )}
+              {!hasBuyingPower && <ActionNotice tone="warning" message="Buying power is below the estimated order cost." />}
+              <Segmented label="Side" options={['BUY', 'SELL']} field={register('side')} />
+              <Segmented label="Order type" options={['MARKET', 'LIMIT']} field={register('type')} />
+              {type === 'LIMIT' && (
+                <Field label="Limit price">
+                  <input className="input" min="0.01" step="0.01" type="number" {...register('limitPrice', { valueAsNumber: true })} />
+                </Field>
+              )}
+              <Field label="Client order id">
+                <input className="input" {...register('clientOrderId', { required: true })} />
               </Field>
-              <Field label="Quantity">
-                <input className="input" min="0.000001" step="0.000001" type="number" {...register('quantity', { required: true, min: 0.000001, valueAsNumber: true })} />
-              </Field>
-            </div>
-            {stockChoices.length > 0 && (
-              <div className="grid gap-2">
-                {stockChoices.slice(0, 4).map((stock) => (
-                  <button
-                    key={stock.symbol}
-                    className="flex items-center justify-between gap-3 rounded border border-white/10 bg-[#11161b] px-3 py-2 text-left"
-                    type="button"
-                    onClick={() => {
-                      setSymbolSearch(stock.symbol)
-                      setValue('symbol', stock.symbol, { shouldDirty: true, shouldValidate: true })
-                    }}
-                  >
-                    <span>
-                      <span className="block text-sm font-semibold text-white">{stock.symbol}</span>
-                      <span className="block truncate text-xs text-slate-400">{stock.companyName}</span>
-                    </span>
-                    <span className="shrink-0 text-sm font-semibold tabular-nums text-emerald-200">{currency(stock.lastPrice)}</span>
-                  </button>
-                ))}
-              </div>
-            )}
-            {stocksQuery.isError && (
-              <ActionNotice tone="warning" message={getApiErrorMessage(stocksQuery.error, 'Live stock prices are unavailable. Try again shortly.')} />
-            )}
-            {selectedStock && (
-              <div className="rounded border border-white/10 bg-[#11161b] p-1">
-                <QuoteRow label={`${selectedStock.symbol} price`} value={currency(selectedStock.lastPrice)} />
-                <QuoteRow label="Estimated value" value={currency(estimatedNotional)} />
-                <QuoteRow label="Buying power" value={currency(buyingPower)} />
-                {side === 'BUY' && <QuoteRow label="Cash after order" value={currency(estimatedCashAfterBuy)} />}
-                <QuoteRow label="Quote updated" value={formatDate(selectedStock.updatedAt)} />
-              </div>
-            )}
-            {!hasBuyingPower && <ActionNotice tone="warning" message="Buying power is below the estimated order cost." />}
-            <Segmented label="Side" options={['BUY', 'SELL']} field={register('side')} />
-            <Segmented label="Order type" options={['MARKET', 'LIMIT']} field={register('type')} />
-            {type === 'LIMIT' && (
-              <Field label="Limit price">
-                <input className="input" min="0.01" step="0.01" type="number" {...register('limitPrice', { valueAsNumber: true })} />
-              </Field>
-            )}
-            <Field label="Client order id">
-              <input className="input" {...register('clientOrderId', { required: true })} />
-            </Field>
-            <button className="primary-button" disabled={mutation.isPending || !formReady || !hasBuyingPower} type="submit">
-              <ArrowUpRight size={18} />
-              {mutation.isPending ? 'Submitting order...' : 'Submit order'}
-            </button>
-            {message && <ActionNotice tone={orderMessageIsWarning ? 'warning' : 'success'} message={message} />}
-          </form>
-        </Panel>
-        <OrdersTable orders={orders} onCancel={(order) => cancelMutation.mutate(order)} />
+              <button className="primary-button" disabled={mutation.isPending || !formReady || !hasBuyingPower} type="submit">
+                <ArrowUpRight size={18} />
+                {mutation.isPending ? 'Submitting order...' : 'Submit order'}
+              </button>
+              {message && <ActionNotice tone={orderMessageIsWarning ? 'warning' : 'success'} message={message} />}
+            </form>
+          </Panel>
+        </div>
+        <div className="grid gap-4">
+          <StockDetail
+            stock={selectedStock}
+            estimatedNotional={estimatedNotional}
+            buyingPower={buyingPower}
+            estimatedCashAfterBuy={estimatedCashAfterBuy}
+            onBuy={(stock) => chooseStock(stock, 'BUY')}
+          />
+          <OrdersTable orders={orders} onCancel={(order) => cancelMutation.mutate(order)} />
+        </div>
       </div>
     </Page>
   )
@@ -1437,6 +1421,145 @@ function OrdersTable({ orders, onCancel }: { orders: Order[]; onCancel?: (order:
             ))}
           </tbody>
         </table>
+      </div>
+    </Panel>
+  )
+}
+
+function MarketBrowser({
+  stocks,
+  selectedSymbol,
+  searchValue,
+  searchPending,
+  onSearchChange,
+  onSearch,
+  onSelect,
+  onBuy,
+}: {
+  stocks: Stock[]
+  selectedSymbol: string
+  searchValue: string
+  searchPending: boolean
+  onSearchChange: (value: string) => void
+  onSearch: () => void
+  onSelect: (stock: Stock) => void
+  onBuy: (stock: Stock) => void
+}) {
+  const visibleStocks = stocks.slice(0, 10)
+  return (
+    <Panel title="Market" icon={TrendingUp}>
+      <div className="grid gap-3">
+        <div className="grid grid-cols-[minmax(0,1fr)_auto] gap-2">
+          <input
+            className="input"
+            value={searchValue}
+            onChange={(event) => onSearchChange(event.target.value)}
+            onKeyDown={(event) => {
+              if (event.key === 'Enter') {
+                event.preventDefault()
+                onSearch()
+              }
+            }}
+          />
+          <button className="secondary-button px-3" disabled={searchPending || searchValue.trim().length === 0} type="button" onClick={onSearch} aria-label="Search symbols">
+            {searchPending ? <Loader2 className="animate-spin" size={18} /> : <Search size={18} />}
+          </button>
+        </div>
+        <div className="grid gap-2">
+          {visibleStocks.map((stock) => {
+            const selected = selectedSymbol === stock.symbol
+            return (
+              <div
+                key={stock.symbol}
+                className={classNames(
+                  'grid gap-2 rounded border bg-[#11161b] p-2 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-center sm:gap-3',
+                  selected ? 'border-emerald-400/40' : 'border-white/10',
+                )}
+              >
+                <button className="min-w-0 text-left" type="button" onClick={() => onSelect(stock)}>
+                  <span className="flex items-center gap-2">
+                    <span className="text-base font-semibold text-white">{stock.symbol}</span>
+                    <span className="rounded bg-white/[0.06] px-2 py-0.5 text-xs text-slate-400">{stock.sector}</span>
+                  </span>
+                  <span className="mt-1 block truncate text-sm text-slate-400">{stock.companyName}</span>
+                </button>
+                <div className="grid gap-2 sm:flex sm:items-center sm:justify-end sm:gap-3">
+                  <div className="sm:text-right">
+                    <p className="font-semibold tabular-nums text-white">{currency(stock.lastPrice)}</p>
+                    <p className="text-xs text-emerald-300">Live quote</p>
+                  </div>
+                  <button className="table-action w-full sm:w-auto" type="button" onClick={() => onBuy(stock)}>
+                    Buy
+                  </button>
+                </div>
+              </div>
+            )
+          })}
+          {visibleStocks.length === 0 && (
+            <div className="rounded border border-white/10 bg-[#11161b] p-4 text-sm text-slate-400">No symbols loaded</div>
+          )}
+        </div>
+      </div>
+    </Panel>
+  )
+}
+
+function StockDetail({
+  stock,
+  estimatedNotional,
+  buyingPower,
+  estimatedCashAfterBuy,
+  onBuy,
+}: {
+  stock: Stock | undefined
+  estimatedNotional: number
+  buyingPower: number
+  estimatedCashAfterBuy: number
+  onBuy: (stock: Stock) => void
+}) {
+  if (!stock) {
+    return (
+      <Panel title="Stock" icon={TrendingUp}>
+        <div className="rounded border border-white/10 bg-[#11161b] p-4 text-sm text-slate-400">Search or select a symbol</div>
+      </Panel>
+    )
+  }
+  const chartData = Array.from({ length: 18 }, (_, index) => ({
+    label: index,
+    value: stock.lastPrice * (0.975 + index * 0.0018 + (index % 3) * 0.002),
+  }))
+  return (
+    <Panel title="Stock" icon={TrendingUp}>
+      <div className="grid gap-4">
+        <div className="flex flex-col justify-between gap-3 sm:flex-row sm:items-start">
+          <div>
+            <div className="flex items-center gap-2">
+              <h3 className="text-2xl font-semibold text-white">{stock.symbol}</h3>
+              <span className="rounded bg-emerald-400/10 px-2 py-1 text-xs text-emerald-200">{stock.sector}</span>
+            </div>
+            <p className="mt-1 text-sm text-slate-400">{stock.companyName}</p>
+          </div>
+          <div className="sm:text-right">
+            <p className="text-3xl font-semibold tabular-nums text-white">{currency(stock.lastPrice)}</p>
+            <p className="mt-1 text-sm text-emerald-300">Live market price</p>
+          </div>
+        </div>
+        <div className="h-44 rounded border border-white/10 bg-[#11161b] p-3">
+          <ResponsiveContainer width="100%" height="100%">
+            <LineChart data={chartData}>
+              <Line dataKey="value" stroke="#47c7a1" strokeWidth={2} dot={false} />
+            </LineChart>
+          </ResponsiveContainer>
+        </div>
+        <div className="grid gap-3 sm:grid-cols-3">
+          <MiniStat label="Estimated order" value={currency(estimatedNotional)} />
+          <MiniStat label="Buying power" value={currency(buyingPower)} />
+          <MiniStat label="Cash after buy" value={currency(estimatedCashAfterBuy)} tone={estimatedCashAfterBuy >= 0 ? 'positive' : 'negative'} />
+        </div>
+        <button className="primary-button" type="button" onClick={() => onBuy(stock)}>
+          <ArrowUpRight size={18} />
+          Buy {stock.symbol}
+        </button>
       </div>
     </Panel>
   )
