@@ -29,7 +29,7 @@ import {
   WalletCards,
   X,
 } from 'lucide-react'
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { useForm } from 'react-hook-form'
 import {
   BrowserRouter,
@@ -819,6 +819,7 @@ function TradingPage() {
   const [marketResults, setMarketResults] = useState<Stock[] | null>(null)
   const [symbolSearch, setSymbolSearch] = useState('AAPL')
   const [message, setMessage] = useState('')
+  const orderTicketRef = useRef<HTMLDivElement>(null)
   const portfoliosQuery = useQuery({ queryKey: ['portfolios'], queryFn: api.portfolios, placeholderData: isDemoSession ? [demoPortfolio] : undefined })
   const stocksQuery = useQuery({
     queryKey: ['stocks'],
@@ -869,6 +870,13 @@ function TradingPage() {
     setSymbolSearch(stock.symbol)
     setValue('symbol', stock.symbol, { shouldDirty: true, shouldValidate: true })
     setValue('side', nextSide, { shouldDirty: true })
+  }
+  const openOrderTicket = (stock: Stock, nextSide: OrderSide) => {
+    chooseStock(stock, nextSide)
+    window.requestAnimationFrame(() => {
+      orderTicketRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+      orderTicketRef.current?.querySelector<HTMLInputElement>('input[name="quantity"]')?.focus({ preventScroll: true })
+    })
   }
 
   useEffect(() => {
@@ -978,71 +986,74 @@ function TradingPage() {
             onSearchChange={(value) => setSymbolSearch(value.toUpperCase())}
             onSearch={() => stockSearchMutation.mutate(symbolSearch)}
             onSelect={(stock) => chooseStock(stock)}
-            onBuy={(stock) => chooseStock(stock, 'BUY')}
+            onBuy={(stock) => openOrderTicket(stock, 'BUY')}
+            onSell={(stock) => openOrderTicket(stock, 'SELL')}
           />
-          <Panel title="New Order" icon={CircleDollarSign}>
-            <form
-              className="grid gap-4"
-              onSubmit={handleSubmit((values) =>
-                mutation.mutate({
-                  ...values,
-                  quantity: Number(values.quantity),
-                  limitPrice: values.type === 'LIMIT' ? Number(values.limitPrice) : undefined,
-                  clientOrderId: values.clientOrderId || `web-${Date.now()}`,
-                }),
-              )}
-            >
-              <Field label="Portfolio">
-                <select className="input" disabled={!accountReady} {...register('portfolioId', { required: true })}>
-                  {portfolios.length === 0 ? (
-                    <option value="">Loading portfolios...</option>
-                  ) : (
-                    portfolios.map((portfolio) => (
-                      <option key={portfolio.id} value={portfolio.id}>
-                        {portfolio.name}
-                      </option>
-                    ))
-                  )}
-                </select>
-              </Field>
-              <div className="grid grid-cols-2 gap-3">
-                <Field label="Selected symbol">
-                  <input className="input" readOnly {...symbolField} value={symbol ?? ''} />
+          <div ref={orderTicketRef}>
+            <Panel title="New Order" icon={CircleDollarSign}>
+              <form
+                className="grid gap-4"
+                onSubmit={handleSubmit((values) =>
+                  mutation.mutate({
+                    ...values,
+                    quantity: Number(values.quantity),
+                    limitPrice: values.type === 'LIMIT' ? Number(values.limitPrice) : undefined,
+                    clientOrderId: values.clientOrderId || `web-${Date.now()}`,
+                  }),
+                )}
+              >
+                <Field label="Portfolio">
+                  <select className="input" disabled={!accountReady} {...register('portfolioId', { required: true })}>
+                    {portfolios.length === 0 ? (
+                      <option value="">Loading portfolios...</option>
+                    ) : (
+                      portfolios.map((portfolio) => (
+                        <option key={portfolio.id} value={portfolio.id}>
+                          {portfolio.name}
+                        </option>
+                      ))
+                    )}
+                  </select>
                 </Field>
-                <Field label="Quantity">
-                  <input className="input" min="0.000001" step="0.000001" type="number" {...register('quantity', { required: true, min: 0.000001, valueAsNumber: true })} />
-                </Field>
-              </div>
-              {stocksQuery.isError && (
-                <ActionNotice tone="warning" message={getApiErrorMessage(stocksQuery.error, 'Live stock prices are unavailable. Try again shortly.')} />
-              )}
-              {selectedStock && (
-                <div className="rounded border border-white/10 bg-[#11161b] p-1">
-                  <QuoteRow label={`${selectedStock.symbol} price`} value={currency(selectedStock.lastPrice)} />
-                  <QuoteRow label="Estimated value" value={currency(estimatedNotional)} />
-                  <QuoteRow label="Buying power" value={currency(buyingPower)} />
-                  {side === 'BUY' && <QuoteRow label="Cash after order" value={currency(estimatedCashAfterBuy)} />}
-                  <QuoteRow label="Quote updated" value={formatDate(selectedStock.updatedAt)} />
+                <div className="grid grid-cols-2 gap-3">
+                  <Field label="Selected symbol">
+                    <input className="input" readOnly {...symbolField} value={symbol ?? ''} />
+                  </Field>
+                  <Field label="Quantity">
+                    <input className="input" min="0.000001" step="0.000001" type="number" {...register('quantity', { required: true, min: 0.000001, valueAsNumber: true })} />
+                  </Field>
                 </div>
-              )}
-              {!hasBuyingPower && <ActionNotice tone="warning" message="Buying power is below the estimated order cost." />}
-              <Segmented label="Side" options={['BUY', 'SELL']} field={register('side')} />
-              <Segmented label="Order type" options={['MARKET', 'LIMIT']} field={register('type')} />
-              {type === 'LIMIT' && (
-                <Field label="Limit price">
-                  <input className="input" min="0.01" step="0.01" type="number" {...register('limitPrice', { valueAsNumber: true })} />
+                {stocksQuery.isError && (
+                  <ActionNotice tone="warning" message={getApiErrorMessage(stocksQuery.error, 'Live stock prices are unavailable. Try again shortly.')} />
+                )}
+                {selectedStock && (
+                  <div className="rounded border border-white/10 bg-[#11161b] p-1">
+                    <QuoteRow label={`${selectedStock.symbol} price`} value={currency(selectedStock.lastPrice)} />
+                    <QuoteRow label="Estimated value" value={currency(estimatedNotional)} />
+                    <QuoteRow label="Buying power" value={currency(buyingPower)} />
+                    {side === 'BUY' && <QuoteRow label="Cash after order" value={currency(estimatedCashAfterBuy)} />}
+                    <QuoteRow label="Quote updated" value={formatDate(selectedStock.updatedAt)} />
+                  </div>
+                )}
+                {!hasBuyingPower && <ActionNotice tone="warning" message="Buying power is below the estimated order cost." />}
+                <Segmented label="Side" options={['BUY', 'SELL']} field={register('side')} />
+                <Segmented label="Order type" options={['MARKET', 'LIMIT']} field={register('type')} />
+                {type === 'LIMIT' && (
+                  <Field label="Limit price">
+                    <input className="input" min="0.01" step="0.01" type="number" {...register('limitPrice', { valueAsNumber: true })} />
+                  </Field>
+                )}
+                <Field label="Client order id">
+                  <input className="input" {...register('clientOrderId', { required: true })} />
                 </Field>
-              )}
-              <Field label="Client order id">
-                <input className="input" {...register('clientOrderId', { required: true })} />
-              </Field>
-              <button className="primary-button" disabled={mutation.isPending || !formReady || !hasBuyingPower} type="submit">
-                <ArrowUpRight size={18} />
-                {mutation.isPending ? 'Submitting order...' : 'Submit order'}
-              </button>
-              {message && <ActionNotice tone={orderMessageIsWarning ? 'warning' : 'success'} message={message} />}
-            </form>
-          </Panel>
+                <button className="primary-button" disabled={mutation.isPending || !formReady || !hasBuyingPower} type="submit">
+                  <ArrowUpRight size={18} />
+                  {mutation.isPending ? 'Submitting order...' : 'Submit order'}
+                </button>
+                {message && <ActionNotice tone={orderMessageIsWarning ? 'warning' : 'success'} message={message} />}
+              </form>
+            </Panel>
+          </div>
         </div>
         <div className="grid gap-4">
           <StockDetail
@@ -1050,7 +1061,8 @@ function TradingPage() {
             estimatedNotional={estimatedNotional}
             buyingPower={buyingPower}
             estimatedCashAfterBuy={estimatedCashAfterBuy}
-            onBuy={(stock) => chooseStock(stock, 'BUY')}
+            onBuy={(stock) => openOrderTicket(stock, 'BUY')}
+            onSell={(stock) => openOrderTicket(stock, 'SELL')}
           />
           <OrdersTable orders={orders} onCancel={(order) => cancelMutation.mutate(order)} />
         </div>
@@ -1503,6 +1515,7 @@ function MarketBrowser({
   onSearch,
   onSelect,
   onBuy,
+  onSell,
 }: {
   stocks: Stock[]
   selectedSymbol: string
@@ -1512,6 +1525,7 @@ function MarketBrowser({
   onSearch: () => void
   onSelect: (stock: Stock) => void
   onBuy: (stock: Stock) => void
+  onSell: (stock: Stock) => void
 }) {
   const visibleStocks = stocks.slice(0, 10)
   return (
@@ -1556,9 +1570,14 @@ function MarketBrowser({
                     <p className="font-semibold tabular-nums text-white">{currency(stock.lastPrice)}</p>
                     <p className="text-xs text-emerald-300">Live quote</p>
                   </div>
-                  <button className="table-action w-full sm:w-auto" type="button" onClick={() => onBuy(stock)}>
-                    Buy
-                  </button>
+                  <div className="grid grid-cols-2 gap-2 sm:flex sm:gap-2">
+                    <button className="table-action w-full sm:w-auto" type="button" onClick={() => onBuy(stock)}>
+                      Buy
+                    </button>
+                    <button className="table-action w-full sm:w-auto" type="button" onClick={() => onSell(stock)}>
+                      Sell
+                    </button>
+                  </div>
                 </div>
               </div>
             )
@@ -1578,12 +1597,14 @@ function StockDetail({
   buyingPower,
   estimatedCashAfterBuy,
   onBuy,
+  onSell,
 }: {
   stock: Stock | undefined
   estimatedNotional: number
   buyingPower: number
   estimatedCashAfterBuy: number
   onBuy: (stock: Stock) => void
+  onSell: (stock: Stock) => void
 }) {
   if (!stock) {
     return (
@@ -1624,10 +1645,16 @@ function StockDetail({
           <MiniStat label="Buying power" value={currency(buyingPower)} />
           <MiniStat label="Cash after buy" value={currency(estimatedCashAfterBuy)} tone={estimatedCashAfterBuy >= 0 ? 'positive' : 'negative'} />
         </div>
-        <button className="primary-button" type="button" onClick={() => onBuy(stock)}>
-          <ArrowUpRight size={18} />
-          Buy {stock.symbol}
-        </button>
+        <div className="grid gap-2 sm:grid-cols-2">
+          <button className="primary-button" type="button" onClick={() => onBuy(stock)}>
+            <ArrowUpRight size={18} />
+            Buy {stock.symbol}
+          </button>
+          <button className="secondary-button justify-center" type="button" onClick={() => onSell(stock)}>
+            <ArrowDownLeft size={18} />
+            Sell {stock.symbol}
+          </button>
+        </div>
       </div>
     </Panel>
   )
