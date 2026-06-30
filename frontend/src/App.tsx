@@ -895,10 +895,10 @@ function TradingPage() {
               <ActionNotice tone="warning" message={getApiErrorMessage(stocksQuery.error, 'Live stock prices are unavailable. Try again shortly.')} />
             )}
             {selectedStock && (
-              <div className="grid gap-3 sm:grid-cols-3">
-                <MiniStat label={`${selectedStock.symbol} price`} value={currency(selectedStock.lastPrice)} />
-                <MiniStat label="Estimated value" value={currency(estimatedNotional)} />
-                <MiniStat label="Quote updated" value={formatDate(selectedStock.updatedAt)} />
+              <div className="rounded border border-white/10 bg-[#11161b] p-1">
+                <QuoteRow label={`${selectedStock.symbol} price`} value={currency(selectedStock.lastPrice)} />
+                <QuoteRow label="Estimated value" value={currency(estimatedNotional)} />
+                <QuoteRow label="Quote updated" value={formatDate(selectedStock.updatedAt)} />
               </div>
             )}
             <Segmented label="Side" options={['BUY', 'SELL']} field={register('side')} />
@@ -1359,6 +1359,15 @@ function MiniStat({ label, value, tone }: { label: string; value: string; tone?:
     <div className="rounded border border-white/10 bg-[#11161b] p-3">
       <p className="text-sm text-slate-400">{label}</p>
       <p className={classNames('mt-1 text-lg font-semibold', tone === 'positive' ? 'text-emerald-300' : tone === 'negative' ? 'text-red-300' : 'text-white')}>{value}</p>
+    </div>
+  )
+}
+
+function QuoteRow({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="rounded px-3 py-3">
+      <span className="text-sm font-medium text-slate-400">{label}</span>
+      <span className="mt-1 block text-xl font-semibold tabular-nums text-white">{value}</span>
     </div>
   )
 }
