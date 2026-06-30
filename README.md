@@ -10,7 +10,7 @@ Enterprise investment portfolio and order management platform built with Spring 
 
 LedgerOne simulates an internal investment management platform for portfolio operations, trading workflows, risk review, and audit visibility. It is designed as an enterprise-style full-stack project: backend rules and persistence are treated as the source of truth, while the frontend presents a quiet, operations-focused dashboard for repeated use.
 
-The project is free to run. It does not require paid brokerage, crypto, or market-data APIs. Seed data and a market simulator provide realistic portfolio movement for demos, interviews, and deployment testing.
+The project is free to run. It does not require paid brokerage or crypto APIs. The backend refreshes equity prices from Yahoo Finance's chart quote endpoint with a short server-side cache, and seed data remains available for local demos when live quotes are disabled.
 
 ## Product Surface
 
@@ -18,7 +18,7 @@ The project is free to run. It does not require paid brokerage, crypto, or marke
 - Holdings, cost basis, realized P/L, unrealized P/L, and allocation analytics
 - Market and limit orders with pending, filled, cancelled, and rejected states
 - Duplicate-safe order placement through `clientOrderId`
-- Watchlist and simulated market prices
+- Watchlist and live equity prices with server-side quote caching
 - Admin views for users, orders, risk alerts, and audit logs
 - JWT access tokens with hashed opaque refresh tokens
 - Flyway-managed PostgreSQL schema and seed data
@@ -62,7 +62,7 @@ Core business rules include:
 - Buying power and share availability checks
 - Order execution with fees, ledger transactions, holdings updates, and rejection reasons
 - Portfolio performance, allocation, concentration, and risk scoring
-- Scheduled market simulation and persisted price history
+- Live quote refresh, persisted price history, and optional local market simulation
 - Admin audit trail for sensitive actions
 
 ## Run With Docker
@@ -96,6 +96,16 @@ npm run dev
 ```
 
 PostgreSQL is expected at `jdbc:postgresql://localhost:5432/ledgerone` unless overridden with environment variables. Flyway creates and seeds the schema on startup.
+
+Market data defaults:
+
+```bash
+MARKET_LIVE_PRICES_ENABLED=true
+MARKET_QUOTE_CACHE_SECONDS=60
+MARKET_QUOTE_URL_TEMPLATE=https://query1.finance.yahoo.com/v8/finance/chart/{symbol}?interval=1m&range=1d
+```
+
+When live prices are enabled, the backend refreshes stock quotes before returning the stock list and before accepting an order. If the quote source is unavailable, order placement returns a visible API error instead of using a fake price. Set `MARKET_LIVE_PRICES_ENABLED=false` only for fully local offline demos.
 
 ## Verification
 

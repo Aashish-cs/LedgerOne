@@ -129,7 +129,7 @@ class TradingServiceTest {
         portfolio.setCashBalance(new BigDecimal("50.0000"));
         when(orderRepository.findByUserAndClientOrderId(user, "buy-1")).thenReturn(Optional.empty());
         when(portfolioService.getOwnedPortfolio(user, portfolio.getId())).thenReturn(portfolio);
-        when(marketDataService.findStock("AAPL")).thenReturn(stock);
+        when(marketDataService.findTradableStock("AAPL")).thenReturn(stock);
         when(orderRepository.save(any(TradeOrder.class))).thenAnswer(invocation -> invocation.getArgument(0));
         when(tradeOrderMapper.toResponse(any(TradeOrder.class)))
                 .thenReturn(orderResponse(UUID.randomUUID(), "buy-1", OrderStatus.REJECTED));
@@ -149,7 +149,7 @@ class TradingServiceTest {
     void filledMarketBuyUpdatesCashHoldingLedgerAndRisk() {
         when(orderRepository.findByUserAndClientOrderId(user, "buy-2")).thenReturn(Optional.empty());
         when(portfolioService.getOwnedPortfolio(user, portfolio.getId())).thenReturn(portfolio);
-        when(marketDataService.findStock("AAPL")).thenReturn(stock);
+        when(marketDataService.findTradableStock("AAPL")).thenReturn(stock);
         when(orderRepository.save(any(TradeOrder.class))).thenAnswer(invocation -> invocation.getArgument(0));
         when(holdingRepository.findByPortfolioAndStock(portfolio, stock)).thenReturn(Optional.empty());
         when(tradeOrderMapper.toResponse(any(TradeOrder.class)))

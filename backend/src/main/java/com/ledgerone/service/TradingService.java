@@ -91,7 +91,8 @@ public class TradingService {
     @Transactional
     public void fillEligibleLimitOrders() {
         orderRepository.findByStatus(OrderStatus.PENDING).forEach(order -> {
-            BigDecimal marketPrice = order.getStock().getLastPrice();
+            Stock refreshedStock = marketDataService.findTradableStock(order.getStock().getSymbol());
+            BigDecimal marketPrice = refreshedStock.getLastPrice();
             boolean executable = order.getSide() == OrderSide.BUY
                     ? order.getLimitPrice().compareTo(marketPrice) >= 0
                     : order.getLimitPrice().compareTo(marketPrice) <= 0;
@@ -103,7 +104,7 @@ public class TradingService {
 
     private TradeOrder createOrder(UserAccount user, TradingDtos.OrderRequest request) {
         Portfolio portfolio = portfolioService.getOwnedPortfolio(user, request.portfolioId());
-        Stock stock = marketDataService.findStock(request.symbol());
+        Stock stock = marketDataService.findTradableStock(request.symbol());
         TradeOrder order = new TradeOrder();
         order.setUser(user);
         order.setPortfolio(portfolio);

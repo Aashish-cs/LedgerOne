@@ -35,6 +35,10 @@ ledgerone:
     max-fee: ${TRADING_MAX_FEE:50.00}
   market:
     simulator-enabled: ${MARKET_SIMULATOR_ENABLED:true}
+    quotes:
+      enabled: ${MARKET_LIVE_PRICES_ENABLED:true}
+      cache-seconds: ${MARKET_QUOTE_CACHE_SECONDS:60}
+      yahoo-chart-url: ${MARKET_QUOTE_URL_TEMPLATE:https://query1.finance.yahoo.com/v8/finance/chart/{symbol}?interval=1m&range=1d}
 
 springdoc:
   swagger-ui:
