@@ -17,6 +17,12 @@ services:
         value: "https://ledger-one-mocha.vercel.app,http://localhost:5173,http://127.0.0.1:5173"
       - key: MARKET_SIMULATOR_ENABLED
         value: "true"
+      - key: MARKET_LIVE_PRICES_ENABLED
+        value: "true"
+      - key: MARKET_QUOTE_CACHE_SECONDS
+        value: "60"
+      - key: MARKET_QUOTE_URL_TEMPLATE
+        value: "https://query2.finance.yahoo.com/v8/finance/chart/{symbol}?interval=1m&range=1d"
       - key: ACCESS_TOKEN_MINUTES
         value: "20"
       - key: REFRESH_TOKEN_DAYS

@@ -7,7 +7,7 @@ public record MarketQuoteProperties(boolean enabled, int cacheSeconds, String ya
     public MarketQuoteProperties {
         cacheSeconds = cacheSeconds <= 0 ? 60 : cacheSeconds;
         yahooChartUrl = yahooChartUrl == null || yahooChartUrl.isBlank()
-                ? "https://query1.finance.yahoo.com/v8/finance/chart/{symbol}?interval=1m&range=1d"
+                ? "https://query2.finance.yahoo.com/v8/finance/chart/{symbol}?interval=1m&range=1d"
                 : yahooChartUrl;
     }
 }

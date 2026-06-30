@@ -102,7 +102,7 @@ Market data defaults:
 ```bash
 MARKET_LIVE_PRICES_ENABLED=true
 MARKET_QUOTE_CACHE_SECONDS=60
-MARKET_QUOTE_URL_TEMPLATE=https://query1.finance.yahoo.com/v8/finance/chart/{symbol}?interval=1m&range=1d
+MARKET_QUOTE_URL_TEMPLATE=https://query2.finance.yahoo.com/v8/finance/chart/{symbol}?interval=1m&range=1d
 ```
 
 When live prices are enabled, the backend refreshes stock quotes before returning the stock list and before accepting an order. If the quote source is unavailable, order placement returns a visible API error instead of using a fake price. Set `MARKET_LIVE_PRICES_ENABLED=false` only for fully local offline demos.
