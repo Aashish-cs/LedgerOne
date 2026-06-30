@@ -25,7 +25,7 @@ export const demoAuth: AuthResponse = {
     email: 'user@ledgerone.com',
     fullName: 'Ashish Mishra',
     status: 'ACTIVE',
-    accountCashBalance: 12_086.04,
+    accountCashBalance: 0,
     roles: ['USER', 'ADMIN'],
     createdAt: daysAgo(30),
   },
@@ -43,10 +43,10 @@ export const demoStocks: Stock[] = [
 
 export const demoPortfolio: Portfolio = {
   id: '33333333-3333-3333-3333-333333333333',
-  name: 'Core Growth Portfolio',
-  cashBalance: 48_250,
+  name: 'Paper Trading Account',
+  cashBalance: 60_336.04,
   marketValue: 39_663.96,
-  totalValue: 87_913.96,
+  totalValue: 100_000,
   realizedProfit: 1_350,
   unrealizedProfit: 10_456.26,
   holdings: [
@@ -127,10 +127,10 @@ export const demoPortfolio: Portfolio = {
 }
 
 export const demoPaperAccount: PaperAccount = {
-  availableCash: 12_086.04,
+  availableCash: demoPortfolio.cashBalance,
   portfolioCash: demoPortfolio.cashBalance,
   marketValue: demoPortfolio.marketValue,
-  totalEquity: 100_000,
+  totalEquity: demoPortfolio.totalValue,
   activePortfolioCount: 1,
 }
 
@@ -192,7 +192,7 @@ export const demoDashboard: Dashboard = {
   openOrders: 1,
   riskScore: 47,
   metrics: [
-    { label: 'Portfolio Value', value: demoPortfolio.totalValue, changePercent: 3.4 },
+    { label: 'Account Value', value: demoPortfolio.totalValue, changePercent: 3.4 },
     { label: 'Cash Balance', value: demoPortfolio.cashBalance, changePercent: 54.88 },
     { label: 'Daily Profit', value: 584.31, changePercent: 0.66 },
     { label: 'Monthly Profit', value: 4218.77, changePercent: 5.04 },

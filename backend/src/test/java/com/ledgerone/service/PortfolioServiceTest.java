@@ -57,6 +57,7 @@ class PortfolioServiceTest {
     @Test
     void creatingPortfolioAllocatesCashFromPaperAccount() {
         when(userRepository.findByIdForUpdate(user.getId())).thenReturn(Optional.of(user));
+        when(portfolioRepository.findFirstByUserAndActiveTrueOrderByCreatedAtAsc(user)).thenReturn(Optional.empty());
         when(portfolioRepository.existsByUserAndActiveTrueAndNameIgnoreCase(user, "Tech Growth")).thenReturn(false);
         when(portfolioRepository.save(any(Portfolio.class))).thenAnswer(invocation -> {
             Portfolio portfolio = invocation.getArgument(0);
@@ -82,6 +83,7 @@ class PortfolioServiceTest {
     void creatingPortfolioRejectsAllocationAboveAvailableCash() {
         user.setAccountCashBalance(new BigDecimal("20000.0000"));
         when(userRepository.findByIdForUpdate(user.getId())).thenReturn(Optional.of(user));
+        when(portfolioRepository.findFirstByUserAndActiveTrueOrderByCreatedAtAsc(user)).thenReturn(Optional.empty());
         when(portfolioRepository.existsByUserAndActiveTrueAndNameIgnoreCase(user, "Dividend")).thenReturn(false);
 
         assertThatThrownBy(() -> portfolioService.create(
@@ -93,6 +95,7 @@ class PortfolioServiceTest {
     @Test
     void creatingPortfolioRejectsDuplicateActiveName() {
         when(userRepository.findByIdForUpdate(user.getId())).thenReturn(Optional.of(user));
+        when(portfolioRepository.findFirstByUserAndActiveTrueOrderByCreatedAtAsc(user)).thenReturn(Optional.empty());
         when(portfolioRepository.existsByUserAndActiveTrueAndNameIgnoreCase(user, "Tech Growth")).thenReturn(true);
 
         assertThatThrownBy(() -> portfolioService.create(
@@ -102,22 +105,31 @@ class PortfolioServiceTest {
     }
 
     @Test
-    void deletingEmptyPortfolioReturnsCashToPaperAccount() {
+    void creatingPortfolioRejectsSecondPaperTradingAccount() {
+        Portfolio existing = new Portfolio();
+        existing.setId(UUID.randomUUID());
+        existing.setUser(user);
+        existing.setName("Paper Trading Account");
+        when(userRepository.findByIdForUpdate(user.getId())).thenReturn(Optional.of(user));
+        when(portfolioRepository.findFirstByUserAndActiveTrueOrderByCreatedAtAsc(user)).thenReturn(Optional.of(existing));
+
+        assertThatThrownBy(() -> portfolioService.create(
+                        user, new PortfolioDtos.PortfolioCreateRequest("Another Account", new BigDecimal("1000"))))
+                .isInstanceOf(ConflictException.class)
+                .hasMessage("Each user has one paper trading account");
+    }
+
+    @Test
+    void deletingPaperTradingAccountIsRejected() {
         Portfolio portfolio = new Portfolio();
         portfolio.setId(UUID.randomUUID());
         portfolio.setUser(user);
-        portfolio.setName("Side Account");
-        portfolio.setCashBalance(new BigDecimal("7500.0000"));
+        portfolio.setName("Paper Trading Account");
 
-        user.setAccountCashBalance(new BigDecimal("12500.0000"));
         when(portfolioRepository.findByIdAndUserAndActiveTrue(portfolio.getId(), user)).thenReturn(Optional.of(portfolio));
-        when(holdingRepository.findByPortfolioAndQuantityGreaterThan(portfolio, BigDecimal.ZERO)).thenReturn(List.of());
-        when(userRepository.findByIdForUpdate(user.getId())).thenReturn(Optional.of(user));
 
-        portfolioService.delete(user, portfolio.getId());
-
-        assertThat(user.getAccountCashBalance()).isEqualByComparingTo("20000.0000");
-        assertThat(portfolio.getCashBalance()).isEqualByComparingTo("0.0000");
-        assertThat(portfolio.isActive()).isFalse();
+        assertThatThrownBy(() -> portfolioService.delete(user, portfolio.getId()))
+                .isInstanceOf(BadRequestException.class)
+                .hasMessage("Paper trading account cannot be deleted");
     }
 }

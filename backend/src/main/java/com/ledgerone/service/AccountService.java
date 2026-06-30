@@ -28,12 +28,12 @@ public class AccountService {
         BigDecimal marketValue = portfolios.stream()
                 .map(PortfolioDtos.PortfolioResponse::marketValue)
                 .reduce(Money.ZERO, BigDecimal::add);
-        BigDecimal availableCash = Money.money(current.getAccountCashBalance());
+        BigDecimal availableCash = Money.money(current.getAccountCashBalance().add(portfolioCash));
         return new AccountDtos.PaperAccountResponse(
                 availableCash,
                 Money.money(portfolioCash),
                 Money.money(marketValue),
-                Money.money(availableCash.add(portfolioCash).add(marketValue)),
-                portfolios.size());
+                Money.money(availableCash.add(marketValue)),
+                portfolios.isEmpty() ? 0 : 1);
     }
 }

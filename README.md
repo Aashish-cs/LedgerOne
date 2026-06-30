@@ -1,6 +1,6 @@
 # LedgerOne
 
-Enterprise investment portfolio and order management platform built with Spring Boot, React, PostgreSQL, JWT authentication, risk analytics, and Render/Vercel deployment.
+Enterprise investment portfolio and order management platform built with Spring Boot, React, PostgreSQL, JWT authentication, live equity quotes, risk analytics, and Render/Vercel deployment.
 
 [Live Frontend](https://ledger-one-mocha.vercel.app) · [Backend Health](https://ledgerone-api-litx.onrender.com/actuator/health) · [API Status](https://ledgerone-api-litx.onrender.com/api/system/status)
 
@@ -8,13 +8,13 @@ Enterprise investment portfolio and order management platform built with Spring 
 
 ## Overview
 
-LedgerOne simulates an internal investment management platform for portfolio operations, trading workflows, risk review, and audit visibility. It is designed as an enterprise-style full-stack project: backend rules and persistence are treated as the source of truth, while the frontend presents a quiet, operations-focused dashboard for repeated use.
+LedgerOne simulates an internal investment management platform for paper-account operations, trading workflows, risk review, and audit visibility. It is designed as an enterprise-style full-stack project: backend rules and persistence are treated as the source of truth, while the frontend presents a quiet, operations-focused dashboard for repeated use.
 
 The project is free to run. It does not require paid brokerage or crypto APIs. The backend refreshes equity prices from Nasdaq's public quote endpoint with a short server-side cache, and seed data remains available for local demos when live quotes are disabled.
 
 ## Product Surface
 
-- Portfolio overview with cash balance, market value, daily/monthly profit, allocation, and risk score
+- Single paper trading account funded at registration with buying power, market value, allocation, and risk score
 - Holdings, cost basis, realized P/L, unrealized P/L, and allocation analytics
 - Market and limit orders with pending, filled, cancelled, and rejected states
 - Duplicate-safe order placement through `clientOrderId`
@@ -61,7 +61,7 @@ Core business rules include:
 - BCrypt password hashing and role-based authorization
 - Buying power and share availability checks
 - Order execution with fees, ledger transactions, holdings updates, and rejection reasons
-- Portfolio performance, allocation, concentration, and risk scoring
+- Paper-account performance, allocation, concentration, and risk scoring
 - Live quote refresh, persisted price history, and optional local market simulation
 - Admin audit trail for sensitive actions
 
@@ -136,6 +136,7 @@ Current production configuration:
 ## Beyond The Prompt
 
 - Self-hosted API status endpoint and live/demo mode indicator in the UI
+- Single-account trading model that creates one funded paper account at registration and blocks extra account creation
 - Render-compatible database URL handling for managed PostgreSQL
 - Forward-only Flyway repair migration for refresh-token schema drift
 - Focused trading service tests for duplicate requests, persisted rejections, cash updates, holdings, ledger writes, and risk hooks

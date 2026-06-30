@@ -20,11 +20,9 @@ import {
   LogOut,
   PieChart as PieChartIcon,
   Plus,
-  Pencil,
   RotateCcw,
   Search,
   ShieldCheck,
-  Trash2,
   TrendingUp,
   WalletCards,
   X,
@@ -81,7 +79,6 @@ import type {
   OrderStatus,
   OrderType,
   PageResponse,
-  PaperAccount,
   Portfolio,
   RiskAlert,
   Stock,
@@ -117,24 +114,6 @@ function formatDate(value: string | undefined) {
 
 function classNames(...values: Array<string | false | undefined>) {
   return values.filter(Boolean).join(' ')
-}
-
-function demoPortfolioFromName(name: string, initialAllocation: number): Portfolio {
-  const createdAt = new Date().toISOString()
-  return {
-    ...demoPortfolio,
-    id: `demo-portfolio-${Date.now()}`,
-    name,
-    cashBalance: initialAllocation,
-    marketValue: 0,
-    totalValue: initialAllocation,
-    realizedProfit: 0,
-    unrealizedProfit: 0,
-    holdings: [],
-    allocation: [],
-    createdAt,
-    updatedAt: createdAt,
-  }
 }
 
 function demoOrderFromRequest(request: OrderRequest, stocks: Stock[], portfolioName: string): Order {
@@ -370,7 +349,7 @@ function Shell() {
   const unreadNotifications = notifications.filter((notification) => !notification.read).length
   const navItems = [
     { to: '/', label: 'Overview', icon: LayoutDashboard },
-    { to: '/portfolios', label: 'Portfolios', icon: BriefcaseBusiness },
+    { to: '/portfolios', label: 'Account', icon: BriefcaseBusiness },
     { to: '/trading', label: 'Trading', icon: CircleDollarSign },
     { to: '/watchlist', label: 'Watchlist', icon: Eye },
     ...(isAdmin ? [{ to: '/admin', label: 'Admin', icon: Building2 }] : []),
@@ -465,7 +444,7 @@ function DashboardPage() {
   const dashboardQuery = useQuery({ queryKey: ['dashboard'], queryFn: () => api.dashboard(), placeholderData: demoDashboard })
   const dashboard = dashboardQuery.data ?? demoDashboard
   return (
-    <Page title="Portfolio Overview" eyebrow={dashboard.portfolioName} action={<RiskBadge score={dashboard.riskScore} />}>
+    <Page title="Account Overview" eyebrow={dashboard.portfolioName} action={<RiskBadge score={dashboard.riskScore} />}>
       <section className="grid gap-3 sm:grid-cols-2 xl:grid-cols-6">
         {dashboard.metrics.map((metric) => (
           <Metric key={metric.label} metric={metric} />
@@ -491,7 +470,7 @@ function DashboardPage() {
             </ResponsiveContainer>
           </div>
         </Panel>
-        <Panel title="Portfolio Allocation" icon={PieChartIcon}>
+        <Panel title="Account Allocation" icon={PieChartIcon}>
           <div className="h-80">
             <ResponsiveContainer width="100%" height="100%">
               <PieChart>
@@ -557,10 +536,6 @@ function NotificationsMenu({ notifications, onClose }: { notifications: AppNotif
 
 function PortfolioPage() {
   const { isDemoSession } = useAuth()
-  const queryClient = useQueryClient()
-  const [demoPortfolios, setDemoPortfolios] = useState<Portfolio[]>([demoPortfolio])
-  const [demoAvailableCash, setDemoAvailableCash] = useState(demoPaperAccount.availableCash)
-  const [message, setMessage] = useState('')
   const portfoliosQuery = useQuery({ queryKey: ['portfolios'], queryFn: api.portfolios, placeholderData: isDemoSession ? [demoPortfolio] : undefined })
   const accountQuery = useQuery({
     queryKey: ['account-summary'],
@@ -568,212 +543,40 @@ function PortfolioPage() {
     enabled: !isDemoSession,
     placeholderData: isDemoSession ? demoPaperAccount : undefined,
   })
-  const portfolios = isDemoSession ? demoPortfolios : (portfoliosQuery.data ?? [])
-  const demoAccount = useMemo<PaperAccount>(() => {
-    const portfolioCash = demoPortfolios.reduce((sum, portfolio) => sum + portfolio.cashBalance, 0)
-    const marketValue = demoPortfolios.reduce((sum, portfolio) => sum + portfolio.marketValue, 0)
-    return {
-      availableCash: demoAvailableCash,
-      portfolioCash,
-      marketValue,
-      totalEquity: demoAvailableCash + portfolioCash + marketValue,
-      activePortfolioCount: demoPortfolios.length,
-    }
-  }, [demoAvailableCash, demoPortfolios])
-  const account = isDemoSession ? demoAccount : accountQuery.data
-  const { register, handleSubmit, reset } = useForm({ defaultValues: { name: '', initialAllocation: 10_000 } })
-  const createMutation = useMutation({
-    mutationFn: async ({ name, initialAllocation }: { name: string; initialAllocation: number }) => {
-      const allocation = Number(initialAllocation)
-      if (isDemoSession) {
-        if (allocation <= 0) {
-          throw new Error('Initial allocation must be greater than zero')
-        }
-        if (allocation > demoAvailableCash) {
-          throw new Error('Allocation exceeds available account cash')
-        }
-        if (demoPortfolios.some((portfolio) => portfolio.name.toLowerCase() === name.trim().toLowerCase())) {
-          throw new Error('Portfolio name already exists')
-        }
-        const created = demoPortfolioFromName(name.trim(), allocation)
-        setDemoAvailableCash((current) => current - allocation)
-        setDemoPortfolios((current) => [created, ...current])
-        return created
-      }
-      return api.createPortfolio(name, allocation)
-    },
-    onSuccess: (portfolio) => {
-      reset({ name: '', initialAllocation: 10_000 })
-      setMessage(`Portfolio "${portfolio.name}" funded with ${currency(portfolio.cashBalance)}`)
-      if (!isDemoSession) {
-        queryClient.setQueryData<Portfolio[]>(['portfolios'], (current) => {
-          const existing = current ?? []
-          return existing.some((item) => item.id === portfolio.id) ? existing : [portfolio, ...existing]
-        })
-      }
-      void queryClient.invalidateQueries({ queryKey: ['portfolios'] })
-      void queryClient.invalidateQueries({ queryKey: ['account-summary'] })
-    },
-    onError: (error) => setMessage(getApiErrorMessage(error, 'Portfolio request failed')),
-  })
-  const renameMutation = useMutation({
-    mutationFn: async ({ id, name }: { id: string; name: string }) => {
-      if (isDemoSession) {
-        setDemoPortfolios((current) =>
-          current.map((portfolio) => (portfolio.id === id ? { ...portfolio, name, updatedAt: new Date().toISOString() } : portfolio)),
-        )
-        return { id, name }
-      }
-      await api.renamePortfolio(id, name)
-      return { id, name }
-    },
-    onSuccess: ({ id, name }) => {
-      setMessage(`Portfolio renamed to "${name}"`)
-      if (!isDemoSession) {
-        queryClient.setQueryData<Portfolio[]>(['portfolios'], (current) =>
-          current?.map((portfolio) => (portfolio.id === id ? { ...portfolio, name, updatedAt: new Date().toISOString() } : portfolio)) ?? current,
-        )
-      }
-      void queryClient.invalidateQueries({ queryKey: ['portfolios'] })
-    },
-    onError: () => setMessage('Rename failed. The API may still be blocked by CORS.'),
-  })
-  const deleteMutation = useMutation({
-    mutationFn: async (portfolio: Portfolio) => {
-      if (portfolio.holdings.length > 0) {
-        throw new Error('Liquidate holdings before deleting a portfolio')
-      }
-      if (isDemoSession) {
-        setDemoPortfolios((current) => current.filter((item) => item.id !== portfolio.id))
-        return portfolio
-      }
-      await api.deletePortfolio(portfolio.id)
-      return portfolio
-    },
-    onSuccess: (portfolio) => {
-      setMessage(`Portfolio "${portfolio.name}" deleted`)
-      if (isDemoSession) {
-        setDemoAvailableCash((current) => current + portfolio.cashBalance)
-      }
-      if (!isDemoSession) {
-        queryClient.setQueryData<Portfolio[]>(['portfolios'], (current) => current?.filter((item) => item.id !== portfolio.id) ?? current)
-      }
-      void queryClient.invalidateQueries({ queryKey: ['portfolios'] })
-      void queryClient.invalidateQueries({ queryKey: ['account-summary'] })
-    },
-    onError: (error) => setMessage(error instanceof Error ? error.message : 'Delete failed'),
-  })
+  const portfolio = (isDemoSession ? [demoPortfolio] : (portfoliosQuery.data ?? []))[0]
+  const account = isDemoSession ? demoPaperAccount : accountQuery.data
   return (
-    <Page title="Portfolios" eyebrow="Accounts, holdings, cost basis">
-      <div className="grid gap-4 xl:grid-cols-[0.72fr_1.28fr]">
-        <Panel title="Create Portfolio" icon={Plus}>
-          <form className="space-y-4" onSubmit={handleSubmit((values) => createMutation.mutate(values))}>
-            <div className="grid gap-3 sm:grid-cols-2">
-              <MiniStat label="Available Cash" value={currency(account?.availableCash)} />
-              <MiniStat label="Total Equity" value={currency(account?.totalEquity)} />
-              <MiniStat label="Portfolio Cash" value={currency(account?.portfolioCash)} />
-              <MiniStat label="Market Value" value={currency(account?.marketValue)} />
-            </div>
-            <Field label="Portfolio name">
-              <input className="input" {...register('name', { required: true, minLength: 2 })} placeholder="Long Horizon Equity" />
-            </Field>
-            <Field label="Initial allocation">
-              <input
-                className="input"
-                type="number"
-                min="1"
-                max={account?.availableCash ?? undefined}
-                step="0.01"
-                {...register('initialAllocation', { required: true, min: 1, valueAsNumber: true })}
-              />
-            </Field>
-            <button className="primary-button" type="submit" disabled={createMutation.isPending}>
-              <Plus size={18} />
-              Create
-            </button>
-            {message && (
-              <ActionNotice
-                tone={
-                  message.includes('failed') || message.includes('Liquidate') || message.includes('exceeds') || message.includes('exists')
-                    ? 'warning'
-                    : 'success'
-                }
-                message={message}
-              />
-            )}
-          </form>
+    <Page title="Paper Account" eyebrow="Buying power, holdings, cost basis">
+      <div className="grid gap-4">
+        <Panel title="Account Summary" icon={WalletCards}>
+          <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+            <MiniStat label="Buying Power" value={currency(account?.availableCash)} />
+            <MiniStat label="Total Equity" value={currency(account?.totalEquity)} />
+            <MiniStat label="Invested Value" value={currency(account?.marketValue)} />
+            <MiniStat label="Account Status" value={account?.activePortfolioCount ? 'Ready' : 'Preparing'} />
+          </div>
         </Panel>
-        <div className="space-y-4">
-          {portfolios.length === 0 ? (
-            <Panel title="No Portfolios" icon={BriefcaseBusiness}>
-              <p className="text-sm text-slate-400">Create a portfolio to start trading with live account data.</p>
-            </Panel>
-          ) : (
-            portfolios.map((portfolio) => (
-              <PortfolioDetail
-                key={portfolio.id}
-                portfolio={portfolio}
-                onRename={(name) => renameMutation.mutate({ id: portfolio.id, name })}
-                onDelete={() => deleteMutation.mutate(portfolio)}
-                busy={renameMutation.isPending || deleteMutation.isPending}
-              />
-            ))
-          )}
-        </div>
+        {portfolio ? (
+          <PortfolioDetail portfolio={portfolio} />
+        ) : (
+          <Panel title="Account Setup" icon={BriefcaseBusiness}>
+            <p className="text-sm text-slate-400">Your trading account is being prepared.</p>
+          </Panel>
+        )}
       </div>
     </Page>
   )
 }
 
-function PortfolioDetail({
-  portfolio,
-  onRename,
-  onDelete,
-  busy,
-}: {
-  portfolio: Portfolio
-  onRename: (name: string) => void
-  onDelete: () => void
-  busy: boolean
-}) {
-  const [editing, setEditing] = useState(false)
-  const [name, setName] = useState(portfolio.name)
+function PortfolioDetail({ portfolio }: { portfolio: Portfolio }) {
   return (
     <Panel
       title={portfolio.name}
       icon={WalletCards}
       action={
-        <div className="flex items-center gap-2">
-          <span className="hidden text-sm text-slate-400 sm:inline">{currency(portfolio.totalValue)}</span>
-          <button className="icon-button h-9 w-9" aria-label={`Rename ${portfolio.name}`} onClick={() => setEditing((value) => !value)}>
-            <Pencil size={16} />
-          </button>
-          <button className="icon-button h-9 w-9" aria-label={`Delete ${portfolio.name}`} disabled={busy} onClick={onDelete}>
-            <Trash2 size={16} />
-          </button>
-        </div>
+        <span className="text-sm font-medium text-slate-300">{currency(portfolio.totalValue)}</span>
       }
     >
-      {editing && (
-        <form
-          className="mb-4 flex flex-col gap-2 sm:flex-row"
-          onSubmit={(event) => {
-            event.preventDefault()
-            onRename(name)
-            setEditing(false)
-          }}
-        >
-          <input
-            aria-label={`New name for ${portfolio.name}`}
-            className="input min-w-0 flex-1"
-            value={name}
-            onChange={(event) => setName(event.target.value)}
-          />
-          <button className="secondary-button" type="submit" disabled={busy || name.trim().length < 2}>
-            Save
-          </button>
-        </form>
-      )}
       <div className="mb-4 grid gap-3 sm:grid-cols-3">
         <MiniStat label="Cash" value={currency(portfolio.cashBalance)} />
         <MiniStat label="Market Value" value={currency(portfolio.marketValue)} />
@@ -827,7 +630,10 @@ function TradingPage() {
     placeholderData: isDemoSession ? demoStocks : undefined,
     refetchInterval: 60_000,
   })
-  const portfolios = useMemo(() => (isDemoSession ? [demoPortfolio] : (portfoliosQuery.data ?? [])), [isDemoSession, portfoliosQuery.data])
+  const portfolios = useMemo(() => {
+    const accounts = isDemoSession ? [demoPortfolio] : (portfoliosQuery.data ?? [])
+    return accounts.slice(0, 1)
+  }, [isDemoSession, portfoliosQuery.data])
   const selectedPortfolioId = portfolios[0]?.id
   const ordersQuery = useQuery({
     queryKey: ['orders', selectedPortfolioId],
@@ -1002,18 +808,13 @@ function TradingPage() {
                   }),
                 )}
               >
-                <Field label="Portfolio">
-                  <select className="input" disabled={!accountReady} {...register('portfolioId', { required: true })}>
-                    {portfolios.length === 0 ? (
-                      <option value="">Loading portfolios...</option>
-                    ) : (
-                      portfolios.map((portfolio) => (
-                        <option key={portfolio.id} value={portfolio.id}>
-                          {portfolio.name}
-                        </option>
-                      ))
-                    )}
-                  </select>
+                <Field label="Account">
+                  <input type="hidden" {...register('portfolioId', { required: true })} />
+                  <input
+                    className="input"
+                    readOnly
+                    value={selectedPortfolio?.name ?? (accountReady ? 'Paper Trading Account' : 'Loading account...')}
+                  />
                 </Field>
                 <div className="grid grid-cols-2 gap-3">
                   <Field label="Selected symbol">

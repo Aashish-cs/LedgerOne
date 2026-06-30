@@ -49,6 +49,9 @@ public class PortfolioService {
         UserAccount managedUser = userRepository
                 .findByIdForUpdate(user.getId())
                 .orElseThrow(() -> new ResourceNotFoundException("Authenticated user not found"));
+        if (portfolioRepository.findFirstByUserAndActiveTrueOrderByCreatedAtAsc(managedUser).isPresent()) {
+            throw new ConflictException("Each user has one paper trading account");
+        }
         if (portfolioRepository.existsByUserAndActiveTrueAndNameIgnoreCase(managedUser, name)) {
             throw new ConflictException("Portfolio name already exists");
         }
@@ -61,7 +64,7 @@ public class PortfolioService {
         portfolio.setName(name);
         portfolio.setCashBalance(allocation);
         Portfolio saved = portfolioRepository.save(portfolio);
-        auditService.record(managedUser, AuditAction.PORTFOLIO_UPDATE, "Portfolio created", saved.getName());
+        auditService.record(managedUser, AuditAction.PORTFOLIO_UPDATE, "Paper account created", saved.getName());
         return toResponse(saved);
     }
 
@@ -73,12 +76,18 @@ public class PortfolioService {
             throw new ConflictException("Portfolio name already exists");
         }
         portfolio.setName(name);
-        auditService.record(user, AuditAction.PORTFOLIO_UPDATE, "Portfolio renamed", portfolio.getName());
+        auditService.record(user, AuditAction.PORTFOLIO_UPDATE, "Paper account renamed", portfolio.getName());
         return toResponse(portfolio);
     }
 
     @Transactional
     public void delete(UserAccount user, UUID portfolioId) {
+        getOwnedPortfolio(user, portfolioId);
+        throw new BadRequestException("Paper trading account cannot be deleted");
+    }
+
+    @Transactional
+    public void archiveEmptyPortfolio(UserAccount user, UUID portfolioId) {
         Portfolio portfolio = getOwnedPortfolio(user, portfolioId);
         List<Holding> holdings = holdingRepository.findByPortfolioAndQuantityGreaterThan(portfolio, BigDecimal.ZERO);
         if (!holdings.isEmpty()) {
@@ -90,7 +99,7 @@ public class PortfolioService {
         managedUser.setAccountCashBalance(Money.money(managedUser.getAccountCashBalance().add(portfolio.getCashBalance())));
         portfolio.setCashBalance(Money.ZERO);
         portfolio.setActive(false);
-        auditService.record(user, AuditAction.PORTFOLIO_UPDATE, "Portfolio deleted", portfolio.getName());
+        auditService.record(user, AuditAction.PORTFOLIO_UPDATE, "Paper account archived", portfolio.getName());
     }
 
     @Transactional(readOnly = true)

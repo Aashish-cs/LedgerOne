@@ -3,6 +3,7 @@ package com.ledgerone.service;
 import com.ledgerone.audit.AuditService;
 import com.ledgerone.dto.AuthDtos;
 import com.ledgerone.entity.AuditAction;
+import com.ledgerone.entity.Portfolio;
 import com.ledgerone.entity.RefreshToken;
 import com.ledgerone.entity.Role;
 import com.ledgerone.entity.RoleName;
@@ -11,6 +12,7 @@ import com.ledgerone.exception.BadRequestException;
 import com.ledgerone.exception.ConflictException;
 import com.ledgerone.exception.ResourceNotFoundException;
 import com.ledgerone.mapper.UserMapper;
+import com.ledgerone.repository.PortfolioRepository;
 import com.ledgerone.repository.RefreshTokenRepository;
 import com.ledgerone.repository.RoleRepository;
 import com.ledgerone.repository.UserAccountRepository;
@@ -37,6 +39,7 @@ import org.springframework.transaction.annotation.Transactional;
 public class AuthenticationService {
     private final UserAccountRepository userRepository;
     private final RoleRepository roleRepository;
+    private final PortfolioRepository portfolioRepository;
     private final RefreshTokenRepository refreshTokenRepository;
     private final PasswordEncoder passwordEncoder;
     private final AuthenticationManager authenticationManager;
@@ -56,9 +59,15 @@ public class AuthenticationService {
         user.setEmail(request.email().toLowerCase());
         user.setPasswordHash(passwordEncoder.encode(request.password()));
         user.setFullName(request.fullName());
-        user.setAccountCashBalance(new BigDecimal("100000.0000"));
+        user.setAccountCashBalance(Money.ZERO);
         user.getRoles().add(userRole);
         UserAccount savedUser = userRepository.save(user);
+
+        Portfolio portfolio = new Portfolio();
+        portfolio.setUser(savedUser);
+        portfolio.setName("Paper Trading Account");
+        portfolio.setCashBalance(new BigDecimal("100000.0000"));
+        portfolioRepository.save(portfolio);
 
         auditService.record(savedUser, AuditAction.PROFILE_UPDATE, "Registration", "User registered", ipAddress);
         return issueTokens(savedUser);
