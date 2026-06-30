@@ -49,7 +49,7 @@ public class MarketDataService {
         for (MarketSearchResult result : stockQuoteService.search(normalizedQuery, 8)) {
             try {
                 liveResults.add(stockMapper.toResponse(findOrCreateStock(result.symbol(), result)));
-            } catch (BadRequestException exception) {
+            } catch (RuntimeException exception) {
                 // Search providers can return stale or unsupported symbols; keep the usable live results.
             }
         }
@@ -144,14 +144,14 @@ public class MarketDataService {
         MarketQuote quote = stockQuoteService.quote(symbol);
         Stock stock = new Stock();
         stock.setSymbol(symbol);
-        stock.setCompanyName(firstNonBlank(
+        stock.setCompanyName(limit(firstNonBlank(
                 quote.companyName(),
                 metadata == null ? null : metadata.companyName(),
-                symbol));
-        stock.setSector(firstNonBlank(
+                symbol), 160));
+        stock.setSector(limit(firstNonBlank(
                 metadata == null ? null : metadata.sector(),
                 quote.sector(),
-                "Equity"));
+                "Equity"), 80));
         stock.setLastPrice(quote.price());
         Stock saved = stockRepository.save(stock);
         saveHistory(saved, quote.price(), quote.observedAt());
@@ -160,10 +160,10 @@ public class MarketDataService {
 
     private Stock updateMetadata(Stock stock, MarketSearchResult metadata) {
         if (metadata != null && metadata.companyName() != null && !metadata.companyName().isBlank()) {
-            stock.setCompanyName(metadata.companyName());
+            stock.setCompanyName(limit(metadata.companyName(), 160));
         }
         if (metadata != null && metadata.sector() != null && !metadata.sector().isBlank()) {
-            stock.setSector(metadata.sector());
+            stock.setSector(limit(metadata.sector(), 80));
         }
         return stock;
     }
@@ -187,5 +187,10 @@ public class MarketDataService {
             }
         }
         return "";
+    }
+
+    private String limit(String value, int maxLength) {
+        String normalized = firstNonBlank(value, "Unknown");
+        return normalized.length() <= maxLength ? normalized : normalized.substring(0, maxLength);
     }
 }
