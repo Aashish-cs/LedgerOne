@@ -975,7 +975,7 @@ function TradingPage() {
                 </Field>
                 <button className="primary-button" disabled={mutation.isPending || !formReady || !hasBuyingPower} type="submit">
                   <ArrowUpRight size={18} />
-                  {mutation.isPending ? 'Submitting order...' : `Submit ${side.toLowerCase()} order`}
+                  {mutation.isPending ? 'Submitting order...' : 'Submit order'}
                 </button>
                 {message && <ActionNotice tone={orderMessageIsWarning ? 'warning' : 'success'} message={message} />}
               </form>
