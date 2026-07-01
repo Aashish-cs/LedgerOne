@@ -129,6 +129,19 @@ function formatChartTick(value: string | undefined) {
   return new Intl.DateTimeFormat('en-US', { hour: 'numeric', minute: '2-digit', second: '2-digit' }).format(new Date(value))
 }
 
+function formatPerformanceAxis(value: number | string) {
+  const amount = Number(value)
+  if (!Number.isFinite(amount)) return ''
+  if (Math.abs(amount) >= 1_000_000) {
+    return `$${(amount / 1_000_000).toFixed(2)}M`
+  }
+  return new Intl.NumberFormat('en-US', {
+    style: 'currency',
+    currency: 'USD',
+    maximumFractionDigits: 0,
+  }).format(amount)
+}
+
 function classNames(...values: Array<string | false | undefined>) {
   return values.filter(Boolean).join(' ')
 }
@@ -529,8 +542,8 @@ function DashboardPage() {
                     (dataMin: number) => Math.max(0, dataMin * 0.998),
                     (dataMax: number) => dataMax * 1.002,
                   ]}
-                  tickFormatter={(value) => `$${Math.round(Number(value) / 1000)}k`}
-                  width={54}
+                  tickFormatter={formatPerformanceAxis}
+                  width={86}
                 />
                 <Tooltip content={<ChartTooltip />} />
                 <Area
