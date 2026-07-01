@@ -1,5 +1,5 @@
-import { useMemo, useState } from 'react'
-import { api, getApiErrorMessage, isApiNetworkError } from '../api/client'
+import { useEffect, useMemo, useState } from 'react'
+import { api, clearAuthSession, getApiErrorMessage, isApiNetworkError, persistAuthSession } from '../api/client'
 import { demoAuth } from '../data/demo'
 import { AuthContext } from './auth-store'
 import type { AuthContextValue } from './auth-store'
@@ -7,13 +7,15 @@ import type { AuthResponse, UserPrincipal } from '../types'
 
 const readUser = () => {
   const raw = localStorage.getItem('ledgerone.user')
-  return raw ? (JSON.parse(raw) as UserPrincipal) : null
-}
-
-const persist = (auth: AuthResponse) => {
-  localStorage.setItem('ledgerone.accessToken', auth.accessToken)
-  localStorage.setItem('ledgerone.refreshToken', auth.refreshToken)
-  localStorage.setItem('ledgerone.user', JSON.stringify(auth.user))
+  if (!raw) {
+    return null
+  }
+  try {
+    return JSON.parse(raw) as UserPrincipal
+  } catch {
+    clearAuthSession()
+    return null
+  }
 }
 
 const demoLogin = (email: string, password: string) => {
@@ -34,6 +36,21 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<UserPrincipal | null>(readUser)
   const isDemoSession = localStorage.getItem('ledgerone.accessToken') === 'demo-access-token'
 
+  useEffect(() => {
+    const syncUser = () => setUser(readUser())
+    const expireUser = () => setUser(null)
+
+    window.addEventListener('ledgerone:auth-refreshed', syncUser)
+    window.addEventListener('ledgerone:auth-expired', expireUser)
+    window.addEventListener('storage', syncUser)
+
+    return () => {
+      window.removeEventListener('ledgerone:auth-refreshed', syncUser)
+      window.removeEventListener('ledgerone:auth-expired', expireUser)
+      window.removeEventListener('storage', syncUser)
+    }
+  }, [])
+
   const value = useMemo<AuthContextValue>(
     () => ({
       user,
@@ -49,7 +66,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           }
           auth = demoLogin(email, password)
         }
-        persist(auth)
+        persistAuthSession(auth)
         setUser(auth.user)
       },
       register: async (email, password, fullName) => {
@@ -62,7 +79,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           }
           auth = { ...demoAuth, user: { ...demoAuth.user, email, fullName, roles: ['USER'] } }
         }
-        persist(auth)
+        persistAuthSession(auth)
         setUser(auth.user)
       },
       logout: async () => {
@@ -70,9 +87,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         if (refreshToken) {
           await api.logout(refreshToken).catch(() => undefined)
         }
-        localStorage.removeItem('ledgerone.accessToken')
-        localStorage.removeItem('ledgerone.refreshToken')
-        localStorage.removeItem('ledgerone.user')
+        clearAuthSession()
         setUser(null)
       },
     }),

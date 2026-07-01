@@ -1,4 +1,5 @@
-import axios from 'axios'
+import axios, { AxiosHeaders } from 'axios'
+import type { AxiosError, InternalAxiosRequestConfig } from 'axios'
 import type {
   AdminUser,
   AppNotification,
@@ -19,19 +20,21 @@ import type {
 
 export const API_BASE_URL = import.meta.env.VITE_API_BASE_URL ?? 'http://localhost:8080/api'
 
+const ACCESS_TOKEN_KEY = 'ledgerone.accessToken'
+const REFRESH_TOKEN_KEY = 'ledgerone.refreshToken'
+const USER_KEY = 'ledgerone.user'
+const DEMO_ACCESS_TOKEN = 'demo-access-token'
+const DEMO_REFRESH_TOKEN = 'demo-refresh-token'
+
+type RetryRequestConfig = InternalAxiosRequestConfig & {
+  _retry?: boolean
+}
+
 export const http = axios.create({
   baseURL: API_BASE_URL,
   headers: {
     'Content-Type': 'application/json',
   },
-})
-
-http.interceptors.request.use((config) => {
-  const token = localStorage.getItem('ledgerone.accessToken')
-  if (token && token !== 'demo-access-token') {
-    config.headers.Authorization = `Bearer ${token}`
-  }
-  return config
 })
 
 const unwrap = <T>(response: { data: ApiResponse<T> }) => {
@@ -40,6 +43,88 @@ const unwrap = <T>(response: { data: ApiResponse<T> }) => {
   }
   return response.data.data
 }
+
+export const persistAuthSession = (auth: AuthResponse) => {
+  localStorage.setItem(ACCESS_TOKEN_KEY, auth.accessToken)
+  localStorage.setItem(REFRESH_TOKEN_KEY, auth.refreshToken)
+  localStorage.setItem(USER_KEY, JSON.stringify(auth.user))
+}
+
+export const clearAuthSession = () => {
+  localStorage.removeItem(ACCESS_TOKEN_KEY)
+  localStorage.removeItem(REFRESH_TOKEN_KEY)
+  localStorage.removeItem(USER_KEY)
+}
+
+let refreshPromise: Promise<AuthResponse> | null = null
+
+const refreshAuthSession = async () => {
+  const refreshToken = localStorage.getItem(REFRESH_TOKEN_KEY)
+  if (!refreshToken || refreshToken === DEMO_REFRESH_TOKEN) {
+    throw new Error('Session expired. Please sign in again.')
+  }
+
+  refreshPromise ??= axios
+    .post<ApiResponse<AuthResponse>>(
+      `${API_BASE_URL}/auth/refresh`,
+      { refreshToken },
+      {
+        headers: {
+          'Content-Type': 'application/json',
+        },
+      },
+    )
+    .then(unwrap)
+    .then((auth) => {
+      persistAuthSession(auth)
+      window.dispatchEvent(new CustomEvent('ledgerone:auth-refreshed', { detail: auth.user }))
+      return auth
+    })
+    .finally(() => {
+      refreshPromise = null
+    })
+
+  return refreshPromise
+}
+
+http.interceptors.request.use((config) => {
+  const token = localStorage.getItem(ACCESS_TOKEN_KEY)
+  if (token && token !== DEMO_ACCESS_TOKEN) {
+    config.headers.Authorization = `Bearer ${token}`
+  }
+  return config
+})
+
+http.interceptors.response.use(
+  (response) => response,
+  async (error: AxiosError) => {
+    const status = error.response?.status
+    const originalRequest = error.config as RetryRequestConfig | undefined
+    const shouldRefresh = status === 401 || status === 403
+
+    if (!shouldRefresh || !originalRequest || originalRequest._retry) {
+      return Promise.reject(error)
+    }
+
+    const currentAccessToken = localStorage.getItem(ACCESS_TOKEN_KEY)
+    if (!currentAccessToken || currentAccessToken === DEMO_ACCESS_TOKEN) {
+      return Promise.reject(error)
+    }
+
+    originalRequest._retry = true
+
+    try {
+      const auth = await refreshAuthSession()
+      originalRequest.headers = AxiosHeaders.from(originalRequest.headers)
+      originalRequest.headers.set('Authorization', `Bearer ${auth.accessToken}`)
+      return http(originalRequest)
+    } catch (refreshError) {
+      clearAuthSession()
+      window.dispatchEvent(new Event('ledgerone:auth-expired'))
+      return Promise.reject(refreshError)
+    }
+  }
+)
 
 export function isApiNetworkError(error: unknown) {
   return axios.isAxiosError(error) && !error.response
