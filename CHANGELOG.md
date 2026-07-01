@@ -9,6 +9,7 @@
 - Removed demo placeholder data from live Portfolio, Trading, and Watchlist action surfaces so users cannot click seeded demo IDs against the production API.
 - Simplified the product model to one funded paper trading account per user, with existing active portfolios consolidated by Flyway migration.
 - Reset the seeded demo account and frontend demo mode to a clean $100,000 paper trading account with no preloaded positions.
+- Rebranded the app and README around stock paper trading, with a refreshed architecture explanation and dashboard screenshot.
 - Improved auth/register feedback in the previous fix: create-account loading state, success handoff, and backend duplicate-email errors now show clearly.
 - Increased backend tests from 7 to 8 by adding quote parsing/cache coverage.
 

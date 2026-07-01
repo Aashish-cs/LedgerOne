@@ -221,16 +221,16 @@ function LoginPage() {
             <LogoMark />
             <div>
               <p className="text-lg font-semibold text-white">LedgerOne</p>
-              <p className="text-xs uppercase tracking-[0.24em] text-slate-400">Investment OMS</p>
+              <p className="text-xs uppercase tracking-[0.24em] text-slate-400">Paper Trading</p>
             </div>
           </div>
           <div className="my-12 max-w-xl">
             <div className="mb-6 inline-flex items-center gap-2 rounded border border-emerald-400/30 bg-emerald-400/10 px-3 py-2 text-sm text-emerald-200">
               <ShieldCheck size={16} />
-              Enterprise Investment Portfolio & Order Management Platform
+              Full-stack stock paper trading platform
             </div>
             <h1 className="text-4xl font-semibold leading-tight text-white sm:text-5xl">
-              Secure portfolio operations with realistic order, audit, and risk workflows.
+              Practice stock trading with live quotes, buying power, watchlists, and audit-ready trade history.
             </h1>
             <ApiModeBadge online={systemQuery.isSuccess} className="mt-6" />
           </div>
@@ -361,7 +361,7 @@ function Shell() {
           <LogoMark />
           <div>
             <p className="font-semibold text-white">LedgerOne</p>
-            <p className="text-xs uppercase tracking-[0.18em] text-slate-500">Portfolio OMS</p>
+            <p className="text-xs uppercase tracking-[0.18em] text-slate-500">Paper Trading</p>
           </div>
         </div>
         <nav className="space-y-1">
@@ -781,7 +781,7 @@ function TradingPage() {
   )
   const symbolField = register('symbol', { required: true })
   return (
-    <Page title="Trading" eyebrow={isDemoSession ? 'Demo equity order management' : 'Live equity order management'}>
+    <Page title="Trading" eyebrow={isDemoSession ? 'Demo paper trading' : 'Live paper trading'}>
       <div className="grid gap-4 xl:grid-cols-[0.9fr_1.1fr]">
         <div className="grid gap-4">
           <MarketBrowser

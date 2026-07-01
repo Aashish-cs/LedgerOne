@@ -12,7 +12,7 @@
 	<artifactId>ledgerone</artifactId>
 	<version>0.0.1-SNAPSHOT</version>
 	<name>LedgerOne</name>
-	<description>Enterprise Investment Portfolio and Order Management Platform</description>
+	<description>Full-Stack Stock Paper Trading Platform</description>
 	<url/>
 	<licenses>
 		<license/>

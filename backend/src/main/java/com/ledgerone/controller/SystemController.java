@@ -37,10 +37,11 @@ public class SystemController {
                         Instant.now(),
                         List.of(
                                 "JWT authentication",
-                                "Order management",
-                                "Portfolio analytics",
+                                "Paper trading",
+                                "Buying power checks",
+                                "Account analytics",
+                                "Live stock quotes",
                                 "Risk scoring",
-                                "Audit logging",
-                                "Market simulation")));
+                                "Audit logging")));
     }
 }
