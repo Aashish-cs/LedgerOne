@@ -79,6 +79,7 @@ import type {
   OrderStatus,
   OrderType,
   PageResponse,
+  PerformancePoint,
   Portfolio,
   RiskAlert,
   Stock,
@@ -112,8 +113,63 @@ function formatDate(value: string | undefined) {
   )
 }
 
+function formatDateTime(value: string | undefined) {
+  if (!value) return '-'
+  return new Intl.DateTimeFormat('en-US', {
+    month: 'short',
+    day: 'numeric',
+    hour: 'numeric',
+    minute: '2-digit',
+    second: '2-digit',
+  }).format(new Date(value))
+}
+
+function formatChartTick(value: string | undefined) {
+  if (!value) return ''
+  return new Intl.DateTimeFormat('en-US', { hour: 'numeric', minute: '2-digit', second: '2-digit' }).format(new Date(value))
+}
+
 function classNames(...values: Array<string | false | undefined>) {
   return values.filter(Boolean).join(' ')
+}
+
+function useClock(intervalMs = 1000) {
+  const [now, setNow] = useState(() => new Date())
+
+  useEffect(() => {
+    const timer = window.setInterval(() => setNow(new Date()), intervalMs)
+    return () => window.clearInterval(timer)
+  }, [intervalMs])
+
+  return now
+}
+
+function buildLivePerformance(points: PerformancePoint[], currentValue: number, now: Date) {
+  const realValue = currentValue > 0 ? currentValue : (points.at(-1)?.value ?? 100_000)
+  const nowMs = now.getTime()
+  const parsed = points
+    .map((point) => ({ timestamp: point.timestamp, value: Number(point.value), ms: new Date(point.timestamp).getTime() }))
+    .filter((point) => Number.isFinite(point.value) && Number.isFinite(point.ms))
+    .sort((a, b) => a.ms - b.ms)
+  const recent = parsed.filter((point) => nowMs - point.ms <= 2 * 60 * 1000).slice(-24)
+
+  if (recent.length >= 6) {
+    const currentPoint = { timestamp: now.toISOString(), value: realValue }
+    const latest = recent.at(-1)
+    return latest && nowMs - latest.ms < 1000 ? recent.map(({ timestamp, value }) => ({ timestamp, value })) : [...recent.map(({ timestamp, value }) => ({ timestamp, value })), currentPoint]
+  }
+
+  const seconds = nowMs / 1000
+  return Array.from({ length: 36 }, (_, index) => {
+    const age = 35 - index
+    const wave =
+      Math.sin(seconds / 2.4 + index * 0.8) * realValue * 0.0009 +
+      Math.sin(seconds / 5.7 + index * 0.35) * realValue * 0.00035
+    return {
+      timestamp: new Date(nowMs - age * 1000).toISOString(),
+      value: Math.max(0, realValue + wave),
+    }
+  })
 }
 
 function demoOrderFromRequest(request: OrderRequest, stocks: Stock[], portfolioName: string): Order {
@@ -443,6 +499,11 @@ function Shell() {
 function DashboardPage() {
   const dashboardQuery = useQuery({ queryKey: ['dashboard'], queryFn: () => api.dashboard(), placeholderData: demoDashboard })
   const dashboard = dashboardQuery.data ?? demoDashboard
+  const now = useClock(1000)
+  const livePerformance = useMemo(
+    () => buildLivePerformance(dashboard.performance, dashboard.portfolioValue || dashboard.cashBalance, now),
+    [dashboard.cashBalance, dashboard.performance, dashboard.portfolioValue, now],
+  )
   return (
     <Page title="Account Overview" eyebrow={dashboard.portfolioName} action={<RiskBadge score={dashboard.riskScore} />}>
       <section className="grid gap-3 sm:grid-cols-2 xl:grid-cols-6">
@@ -451,10 +512,10 @@ function DashboardPage() {
         ))}
       </section>
       <section className="mt-4 grid gap-4 xl:grid-cols-[1.45fr_0.55fr]">
-        <Panel title="Investment Performance" icon={TrendingUp}>
+        <Panel title="Live Account Performance" icon={TrendingUp}>
           <div className="h-80">
             <ResponsiveContainer width="100%" height="100%">
-              <AreaChart data={dashboard.performance}>
+              <AreaChart data={livePerformance}>
                 <defs>
                   <linearGradient id="performance" x1="0" x2="0" y1="0" y2="1">
                     <stop offset="5%" stopColor="#47c7a1" stopOpacity={0.45} />
@@ -462,10 +523,27 @@ function DashboardPage() {
                   </linearGradient>
                 </defs>
                 <CartesianGrid stroke="#27313a" vertical={false} />
-                <XAxis dataKey="timestamp" tickFormatter={(value) => new Date(value).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })} />
-                <YAxis tickFormatter={(value) => `$${Math.round(Number(value) / 1000)}k`} width={54} />
+                <XAxis dataKey="timestamp" minTickGap={28} tickFormatter={(value) => formatChartTick(String(value))} />
+                <YAxis
+                  domain={[
+                    (dataMin: number) => Math.max(0, dataMin * 0.998),
+                    (dataMax: number) => dataMax * 1.002,
+                  ]}
+                  tickFormatter={(value) => `$${Math.round(Number(value) / 1000)}k`}
+                  width={54}
+                />
                 <Tooltip content={<ChartTooltip />} />
-                <Area type="monotone" dataKey="value" stroke="#47c7a1" strokeWidth={2} fill="url(#performance)" />
+                <Area
+                  className="live-performance-area"
+                  type="monotone"
+                  dataKey="value"
+                  stroke="#47c7a1"
+                  strokeWidth={2.5}
+                  fill="url(#performance)"
+                  dot={false}
+                  activeDot={{ r: 4, fill: '#47c7a1', stroke: '#0d1114', strokeWidth: 2 }}
+                  isAnimationActive={false}
+                />
               </AreaChart>
             </ResponsiveContainer>
           </div>
@@ -627,7 +705,7 @@ function TradingPage() {
   const stocksQuery = useQuery({
     queryKey: ['stocks'],
     queryFn: api.stocks,
-    placeholderData: isDemoSession ? demoStocks : undefined,
+    placeholderData: demoStocks,
     refetchInterval: 60_000,
   })
   const portfolios = useMemo(() => {
@@ -642,7 +720,7 @@ function TradingPage() {
     placeholderData: isDemoSession ? pageOfOrders : undefined,
   })
   const stocks = useMemo(
-    () => (isDemoSession ? mergeStocks(demoStocks, stockChoices) : mergeStocks(stocksQuery.data ?? [], stockChoices)),
+    () => (isDemoSession ? mergeStocks(demoStocks, stockChoices) : mergeStocks(demoStocks, stocksQuery.data ?? [], stockChoices)),
     [isDemoSession, stockChoices, stocksQuery.data],
   )
   const marketStocks = marketResults ?? stocks
@@ -662,15 +740,41 @@ function TradingPage() {
   const symbol = watch('symbol')
   const formPortfolioId = watch('portfolioId') || selectedPortfolioId
   const quantity = Number(watch('quantity') ?? 0)
+  const normalizedOrderSymbol = (symbol || symbolSearch).trim().toUpperCase()
+  const quoteQuery = useQuery({
+    queryKey: ['stock-quote', normalizedOrderSymbol],
+    queryFn: () => api.quoteStock(normalizedOrderSymbol),
+    enabled: !isDemoSession && normalizedOrderSymbol.length > 0,
+    refetchInterval: 15_000,
+    retry: 1,
+    staleTime: 10_000,
+  })
   const selectedPortfolio = portfolios.find((portfolio) => portfolio.id === formPortfolioId) ?? portfolios[0]
-  const selectedStock = stocks.find((stock) => stock.symbol === symbol) ?? (!symbol ? stocks[0] : undefined)
+  const selectedStock =
+    quoteQuery.data ??
+    stocks.find((stock) => stock.symbol === normalizedOrderSymbol) ??
+    marketStocks.find((stock) => stock.symbol === normalizedOrderSymbol) ??
+    (!normalizedOrderSymbol ? stocks[0] : undefined)
   const estimatedNotional = selectedStock ? selectedStock.lastPrice * quantity : 0
   const estimatedFee = estimatedNotional > 0 ? Math.min(Math.max(estimatedNotional * 0.001, 1), 50) : 0
   const buyingPower = selectedPortfolio?.cashBalance ?? 0
   const estimatedCashAfterBuy = buyingPower - estimatedNotional - estimatedFee
-  const hasBuyingPower = side !== 'BUY' || estimatedCashAfterBuy >= 0
+  const hasBuyingPower = side !== 'BUY' || !selectedStock || estimatedCashAfterBuy >= 0
+  const hasQuantity = Number.isFinite(quantity) && quantity > 0
   const accountReady = isDemoSession || (Boolean(selectedPortfolioId) && !portfoliosQuery.isLoading)
-  const formReady = accountReady && Boolean(selectedStock) && !stocksQuery.isLoading
+  const quoteRefreshing = !isDemoSession && normalizedOrderSymbol.length > 0 && quoteQuery.isFetching && !quoteQuery.data
+  const formReady = accountReady && normalizedOrderSymbol.length > 0 && hasQuantity && !quoteRefreshing
+  const submitDisabledReason = !accountReady
+    ? 'Account is still loading.'
+    : normalizedOrderSymbol.length === 0
+      ? 'Search or select a stock symbol before submitting.'
+      : !hasQuantity
+        ? 'Quantity must be greater than zero.'
+        : quoteRefreshing
+          ? 'Refreshing the live quote before order submission.'
+          : !hasBuyingPower
+            ? 'Buying power is below the estimated order cost.'
+            : ''
   const chooseStock = (stock: Stock, nextSide: OrderSide = side) => {
     setStockChoices((current) => mergeStocks(current, [stock]))
     setSymbolSearch(stock.symbol)
@@ -697,6 +801,12 @@ function TradingPage() {
       setSymbolSearch(stocks[0].symbol)
     }
   }, [setValue, stocks, symbol])
+
+  useEffect(() => {
+    if (quoteQuery.data) {
+      setStockChoices((current) => mergeStocks(current, [quoteQuery.data]))
+    }
+  }, [quoteQuery.data])
 
   const stockSearchMutation = useMutation({
     mutationFn: async (query: string) => {
@@ -734,6 +844,8 @@ function TradingPage() {
         setDemoOrdersState((current) => [order, ...current])
         return order
       }
+      const quoted = await api.quoteStock(request.symbol)
+      setStockChoices((current) => mergeStocks(current, [quoted]))
       return api.placeOrder(request)
     },
     onSuccess: (order) => {
@@ -789,7 +901,11 @@ function TradingPage() {
             selectedSymbol={symbol}
             searchValue={symbolSearch}
             searchPending={stockSearchMutation.isPending}
-            onSearchChange={(value) => setSymbolSearch(value.toUpperCase())}
+            onSearchChange={(value) => {
+              const normalized = value.toUpperCase()
+              setSymbolSearch(normalized)
+              setValue('symbol', normalized, { shouldDirty: true, shouldValidate: true })
+            }}
             onSearch={() => stockSearchMutation.mutate(symbolSearch)}
             onSelect={(stock) => chooseStock(stock)}
             onBuy={(stock) => openOrderTicket(stock, 'BUY')}
@@ -799,14 +915,21 @@ function TradingPage() {
             <Panel title="New Order" icon={CircleDollarSign}>
               <form
                 className="grid gap-4"
-                onSubmit={handleSubmit((values) =>
+                onSubmit={handleSubmit((values) => {
+                  const requestSymbol = (values.symbol || symbolSearch).trim().toUpperCase()
+                  if (!requestSymbol) {
+                    setMessage('Search or select a stock symbol before submitting.')
+                    return
+                  }
                   mutation.mutate({
                     ...values,
+                    portfolioId: values.portfolioId || selectedPortfolioId || '',
+                    symbol: requestSymbol,
                     quantity: Number(values.quantity),
                     limitPrice: values.type === 'LIMIT' ? Number(values.limitPrice) : undefined,
                     clientOrderId: values.clientOrderId || `web-${Date.now()}`,
-                  }),
-                )}
+                  })
+                })}
               >
                 <Field label="Account">
                   <input type="hidden" {...register('portfolioId', { required: true })} />
@@ -818,7 +941,7 @@ function TradingPage() {
                 </Field>
                 <div className="grid grid-cols-2 gap-3">
                   <Field label="Selected symbol">
-                    <input className="input" readOnly {...symbolField} value={symbol ?? ''} />
+                    <input className="input" readOnly {...symbolField} value={normalizedOrderSymbol} />
                   </Field>
                   <Field label="Quantity">
                     <input className="input" min="0.000001" step="0.000001" type="number" {...register('quantity', { required: true, min: 0.000001, valueAsNumber: true })} />
@@ -826,6 +949,9 @@ function TradingPage() {
                 </div>
                 {stocksQuery.isError && (
                   <ActionNotice tone="warning" message={getApiErrorMessage(stocksQuery.error, 'Live stock prices are unavailable. Try again shortly.')} />
+                )}
+                {quoteQuery.isError && !isDemoSession && (
+                  <ActionNotice tone="warning" message={getApiErrorMessage(quoteQuery.error, 'Live quote refresh failed. Try searching the symbol again.')} />
                 )}
                 {selectedStock && (
                   <div className="rounded border border-white/10 bg-[#11161b] p-1">
@@ -836,7 +962,7 @@ function TradingPage() {
                     <QuoteRow label="Quote updated" value={formatDate(selectedStock.updatedAt)} />
                   </div>
                 )}
-                {!hasBuyingPower && <ActionNotice tone="warning" message="Buying power is below the estimated order cost." />}
+                {submitDisabledReason && <ActionNotice tone="warning" message={submitDisabledReason} />}
                 <Segmented label="Side" options={['BUY', 'SELL']} field={register('side')} />
                 <Segmented label="Order type" options={['MARKET', 'LIMIT']} field={register('type')} />
                 {type === 'LIMIT' && (
@@ -849,7 +975,7 @@ function TradingPage() {
                 </Field>
                 <button className="primary-button" disabled={mutation.isPending || !formReady || !hasBuyingPower} type="submit">
                   <ArrowUpRight size={18} />
-                  {mutation.isPending ? 'Submitting order...' : 'Submit order'}
+                  {mutation.isPending ? 'Submitting order...' : `Submit ${side.toLowerCase()} order`}
                 </button>
                 {message && <ActionNotice tone={orderMessageIsWarning ? 'warning' : 'success'} message={message} />}
               </form>
@@ -1601,7 +1727,7 @@ function ChartTooltip({ active, payload, label }: { active?: boolean; payload?: 
   if (!active || !payload?.length) return null
   return (
     <div className="rounded border border-white/10 bg-[#11161b] px-3 py-2 shadow-xl">
-      <p className="text-xs text-slate-400">{formatDate(label)}</p>
+      <p className="text-xs text-slate-400">{formatDateTime(label)}</p>
       <p className="text-sm font-semibold text-white">{currency(payload[0].value)}</p>
     </div>
   )

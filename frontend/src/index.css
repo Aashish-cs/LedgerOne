@@ -59,6 +59,24 @@ select:focus-visible {
   font-size: 12px;
 }
 
+.live-performance-area .recharts-area-curve {
+  filter: drop-shadow(0 0 8px rgba(71, 199, 161, 0.55));
+}
+
+.live-performance-area .recharts-area-area {
+  animation: performance-glow 3.2s ease-in-out infinite;
+}
+
+@keyframes performance-glow {
+  0%,
+  100% {
+    opacity: 0.88;
+  }
+  50% {
+    opacity: 1;
+  }
+}
+
 .input {
   width: 100%;
   min-height: 2.75rem;

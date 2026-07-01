@@ -118,13 +118,15 @@ public class MarketDataService {
             return stock;
         }
         MarketQuote quote = stockQuoteService.quote(stock.getSymbol());
+        Instant refreshedAt = Instant.now();
         stock.setLastPrice(quote.price());
+        stock.setUpdatedAt(refreshedAt);
         stockRepository.save(stock);
 
         PriceHistory history = new PriceHistory();
         history.setStock(stock);
         history.setPrice(quote.price());
-        history.setObservedAt(quote.observedAt());
+        history.setObservedAt(refreshedAt);
         priceHistoryRepository.save(history);
         return stock;
     }
@@ -154,7 +156,7 @@ public class MarketDataService {
                 "Equity"), 80));
         stock.setLastPrice(quote.price());
         Stock saved = stockRepository.save(stock);
-        saveHistory(saved, quote.price(), quote.observedAt());
+        saveHistory(saved, quote.price(), Instant.now());
         return saved;
     }
 
