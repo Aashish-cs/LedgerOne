@@ -69,7 +69,7 @@ public class DashboardService {
                 openOrders,
                 risk.riskScore(),
                 List.of(
-                        new DashboardDtos.MetricCard("Portfolio Value", portfolioResponse.totalValue(), Money.percent(totalReturn, portfolioResponse.totalValue())),
+                        new DashboardDtos.MetricCard("Account Value", portfolioResponse.totalValue(), Money.percent(totalReturn, portfolioResponse.totalValue())),
                         new DashboardDtos.MetricCard("Cash Balance", portfolioResponse.cashBalance(), Money.percent(portfolioResponse.cashBalance(), portfolioResponse.totalValue())),
                         new DashboardDtos.MetricCard("Daily Profit", dailyProfit, Money.percent(dailyProfit, portfolioResponse.totalValue())),
                         new DashboardDtos.MetricCard("Monthly Profit", monthlyProfit, Money.percent(monthlyProfit, portfolioResponse.totalValue())),
@@ -95,7 +95,7 @@ public class DashboardService {
                 0,
                 List.of(
                         new DashboardDtos.MetricCard("Available Cash", availableCash, BigDecimal.ZERO),
-                        new DashboardDtos.MetricCard("Portfolio Value", Money.ZERO, BigDecimal.ZERO),
+                        new DashboardDtos.MetricCard("Account Value", Money.ZERO, BigDecimal.ZERO),
                         new DashboardDtos.MetricCard("Daily Profit", Money.ZERO, BigDecimal.ZERO),
                         new DashboardDtos.MetricCard("Monthly Profit", Money.ZERO, BigDecimal.ZERO),
                         new DashboardDtos.MetricCard("Open Orders", BigDecimal.ZERO, BigDecimal.ZERO),
