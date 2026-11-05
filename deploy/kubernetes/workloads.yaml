@@ -1,0 +1,219 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: ledgerone-api
+spec:
+  selector:
+    matchLabels:
+      app: ledgerone-api
+  template:
+    metadata:
+      labels:
+        app: ledgerone-api
+    spec:
+      automountServiceAccountToken: false
+      terminationGracePeriodSeconds: 60
+      containers:
+        - name: ledgerone
+          image: ledgerone-backend:replace-me
+          ports:
+            - name: http
+              containerPort: 8080
+          envFrom:
+            - configMapRef:
+                name: ledgerone-config
+            - secretRef:
+                name: ledgerone-secrets
+          env:
+            - name: SPRING_PROFILES_ACTIVE
+              value: order-api
+            - name: MARKET_SIMULATOR_ENABLED
+              value: "false"
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop: [ALL]
+          resources:
+            requests:
+              cpu: 250m
+              memory: 512Mi
+            limits:
+              memory: 1Gi
+          startupProbe:
+            httpGet:
+              path: /actuator/health/liveness
+              port: http
+            periodSeconds: 5
+            failureThreshold: 36
+          readinessProbe:
+            httpGet:
+              path: /actuator/health/readiness
+              port: http
+          livenessProbe:
+            httpGet:
+              path: /actuator/health/liveness
+              port: http
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: ledgerone-order-worker
+spec:
+  selector:
+    matchLabels:
+      app: ledgerone-order-worker
+  template:
+    metadata:
+      labels:
+        app: ledgerone-order-worker
+    spec:
+      automountServiceAccountToken: false
+      terminationGracePeriodSeconds: 60
+      containers:
+        - name: ledgerone
+          image: ledgerone-backend:replace-me
+          ports:
+            - name: http
+              containerPort: 8080
+          envFrom:
+            - configMapRef:
+                name: ledgerone-config
+            - secretRef:
+                name: ledgerone-secrets
+          env:
+            - name: SPRING_PROFILES_ACTIVE
+              value: order-worker
+            - name: MARKET_SIMULATOR_ENABLED
+              value: "false"
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop: [ALL]
+          resources:
+            requests:
+              cpu: 250m
+              memory: 512Mi
+            limits:
+              memory: 1Gi
+          startupProbe:
+            httpGet:
+              path: /actuator/health/liveness
+              port: http
+            periodSeconds: 5
+            failureThreshold: 36
+          readinessProbe:
+            httpGet:
+              path: /actuator/health/readiness
+              port: http
+          livenessProbe:
+            httpGet:
+              path: /actuator/health/liveness
+              port: http
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: ledgerone-market-scheduler
+spec:
+  replicas: 1
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      app: ledgerone-market-scheduler
+  template:
+    metadata:
+      labels:
+        app: ledgerone-market-scheduler
+    spec:
+      automountServiceAccountToken: false
+      terminationGracePeriodSeconds: 60
+      containers:
+        - name: ledgerone
+          image: ledgerone-backend:replace-me
+          ports:
+            - name: http
+              containerPort: 8080
+          envFrom:
+            - configMapRef:
+                name: ledgerone-config
+            - secretRef:
+                name: ledgerone-secrets
+          env:
+            - name: SPRING_PROFILES_ACTIVE
+              value: scheduler
+            - name: MARKET_SIMULATOR_ENABLED
+              value: "true"
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop: [ALL]
+          resources:
+            requests:
+              cpu: 100m
+              memory: 512Mi
+            limits:
+              memory: 1Gi
+          startupProbe:
+            httpGet:
+              path: /actuator/health/liveness
+              port: http
+            periodSeconds: 5
+            failureThreshold: 36
+          readinessProbe:
+            httpGet:
+              path: /actuator/health/readiness
+              port: http
+          livenessProbe:
+            httpGet:
+              path: /actuator/health/liveness
+              port: http
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: ledgerone-api
+spec:
+  selector:
+    app: ledgerone-api
+  ports:
+    - port: 8080
+      targetPort: http
+---
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: ledgerone-api
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: ledgerone-api
+  minReplicas: 2
+  maxReplicas: 6
+  metrics:
+    - type: Resource
+      resource:
+        name: cpu
+        target:
+          type: Utilization
+          averageUtilization: 65
+---
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: ledgerone-order-worker
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: ledgerone-order-worker
+  minReplicas: 2
+  maxReplicas: 6
+  metrics:
+    - type: Resource
+      resource:
+        name: cpu
+        target:
+          type: Utilization
+          averageUtilization: 65

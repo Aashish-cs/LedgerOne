@@ -36,3 +36,27 @@ jobs:
       - run: npm ci
       - run: npm run lint
       - run: npm run build
+
+  queued-orders:
+    name: Kafka and PostgreSQL smoke test
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "24"
+      - name: Start isolated stack
+        run: docker compose -p ledgerone-queue -f docker-compose.yml -f docker-compose.queue.yml up -d --build --scale worker=2 backend worker
+      - name: Wait for the API
+        run: curl --fail --silent --show-error --retry 45 --retry-all-errors --retry-delay 2 http://127.0.0.1:18080/actuator/health/readiness
+      - name: Verify persisted fills and replay safety
+        run: node benchmarks/queued-orders.mjs
+        env:
+          ORDERS_PER_ACCOUNT: "5"
+      - name: Print logs on failure
+        if: failure()
+        run: docker compose -p ledgerone-queue -f docker-compose.yml -f docker-compose.queue.yml logs --tail=150
+      - name: Stop isolated stack
+        if: always()
+        run: docker compose -p ledgerone-queue -f docker-compose.yml -f docker-compose.queue.yml down -v

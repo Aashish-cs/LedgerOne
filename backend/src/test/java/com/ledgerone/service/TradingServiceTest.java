@@ -23,6 +23,7 @@ import com.ledgerone.notification.NotificationService;
 import com.ledgerone.repository.HoldingRepository;
 import com.ledgerone.repository.LedgerTransactionRepository;
 import com.ledgerone.repository.TradeOrderRepository;
+import com.ledgerone.repository.UserAccountRepository;
 import java.math.BigDecimal;
 import java.util.Optional;
 import java.util.UUID;
@@ -37,6 +38,10 @@ import org.mockito.junit.jupiter.MockitoExtension;
 class TradingServiceTest {
     @Mock
     private TradeOrderRepository orderRepository;
+    @Mock
+    private UserAccountRepository userRepository;
+    @Mock
+    private TradeOrderRepository.PendingOrder pendingOrder;
 
     @Mock
     private HoldingRepository holdingRepository;
@@ -74,6 +79,7 @@ class TradingServiceTest {
     void setUp() {
         tradingService = new TradingService(
                 orderRepository,
+                userRepository,
                 holdingRepository,
                 ledgerTransactionRepository,
                 portfolioService,
@@ -117,7 +123,8 @@ class TradingServiceTest {
         when(orderRepository.findByUserAndClientOrderId(user, "duplicate-1")).thenReturn(Optional.of(existing));
         when(tradeOrderMapper.toResponse(existing)).thenReturn(expected);
 
-        TradingDtos.OrderResponse actual = tradingService.placeOrder(user, orderRequest("duplicate-1"));
+        when(userRepository.findByIdForUpdate(user.getId())).thenReturn(Optional.of(user));
+        TradingDtos.OrderResponse actual = tradingService.placeOrder(user.getId(), orderRequest("duplicate-1"));
 
         assertThat(actual).isEqualTo(expected);
         verify(orderRepository, never()).save(any());
@@ -134,7 +141,8 @@ class TradingServiceTest {
         when(tradeOrderMapper.toResponse(any(TradeOrder.class)))
                 .thenReturn(orderResponse(UUID.randomUUID(), "buy-1", OrderStatus.REJECTED));
 
-        tradingService.placeOrder(user, orderRequest("buy-1"));
+        when(userRepository.findByIdForUpdate(user.getId())).thenReturn(Optional.of(user));
+        tradingService.placeOrder(user.getId(), orderRequest("buy-1"));
 
         ArgumentCaptor<TradeOrder> orderCaptor = ArgumentCaptor.forClass(TradeOrder.class);
         verify(orderRepository).save(orderCaptor.capture());
@@ -155,7 +163,8 @@ class TradingServiceTest {
         when(tradeOrderMapper.toResponse(any(TradeOrder.class)))
                 .thenReturn(orderResponse(UUID.randomUUID(), "buy-2", OrderStatus.FILLED));
 
-        tradingService.placeOrder(user, orderRequest("buy-2"));
+        when(userRepository.findByIdForUpdate(user.getId())).thenReturn(Optional.of(user));
+        tradingService.placeOrder(user.getId(), orderRequest("buy-2"));
 
         ArgumentCaptor<Holding> holdingCaptor = ArgumentCaptor.forClass(Holding.class);
         ArgumentCaptor<LedgerTransaction> ledgerCaptor = ArgumentCaptor.forClass(LedgerTransaction.class);
@@ -169,6 +178,78 @@ class TradingServiceTest {
         assertThat(portfolio.getCashBalance()).isEqualByComparingTo("899.0000");
         assertThat(ledgerCaptor.getValue().getPrice()).isEqualByComparingTo("100.0000");
         assertThat(ledgerCaptor.getValue().getFees()).isEqualByComparingTo("1.0000");
+    }
+
+    @Test
+    void waitingBuyDoesNotDebitCash() {
+        var request = new TradingDtos.OrderRequest(portfolio.getId(), "AAPL", OrderSide.BUY,
+                OrderType.LIMIT, BigDecimal.ONE, new BigDecimal("90"), "waiting-buy");
+        when(userRepository.findByIdForUpdate(user.getId())).thenReturn(Optional.of(user));
+        when(portfolioService.getOwnedPortfolio(user, portfolio.getId())).thenReturn(portfolio);
+        when(marketDataService.findTradableStock("AAPL")).thenReturn(stock);
+
+        tradingService.placeOrder(user.getId(), request);
+
+        var order = ArgumentCaptor.forClass(TradeOrder.class);
+        verify(orderRepository).save(order.capture());
+        assertThat(order.getValue().getStatus()).isEqualTo(OrderStatus.PENDING);
+        assertThat(portfolio.getCashBalance()).isEqualByComparingTo("1000");
+        verify(ledgerTransactionRepository, never()).save(any());
+    }
+
+    @Test
+    void eligibleBuyRechecksBuyingPowerWithoutDebitingWhenCashWasSpent() {
+        TradeOrder order = pendingLimit(OrderSide.BUY);
+        portfolio.setCashBalance(new BigDecimal("100")); // The $1 execution fee no longer fits.
+        when(marketDataService.findTradableStock("AAPL")).thenReturn(stock);
+
+        tradingService.fillPendingOrder(pendingOrder);
+
+        assertThat(order.getStatus()).isEqualTo(OrderStatus.REJECTED);
+        assertThat(order.getRejectionReason()).isEqualTo("Buying power is insufficient");
+        assertThat(portfolio.getCashBalance()).isEqualByComparingTo("100");
+        verify(ledgerTransactionRepository, never()).save(any());
+    }
+
+    @Test
+    void eligibleSellRechecksAvailableShares() {
+        TradeOrder order = pendingLimit(OrderSide.SELL);
+        when(marketDataService.findTradableStock("AAPL")).thenReturn(stock);
+        when(holdingRepository.findByPortfolioAndStock(portfolio, stock)).thenReturn(Optional.empty());
+
+        tradingService.fillPendingOrder(pendingOrder);
+
+        assertThat(order.getStatus()).isEqualTo(OrderStatus.REJECTED);
+        assertThat(order.getRejectionReason()).isEqualTo("Shares available are insufficient");
+        verify(ledgerTransactionRepository, never()).save(any());
+    }
+
+    @Test
+    void staleScheduledReferenceDoesNotRefillCancelledOrder() {
+        TradeOrder order = pendingLimit(OrderSide.BUY);
+        order.setStatus(OrderStatus.CANCELLED);
+
+        tradingService.fillPendingOrder(pendingOrder);
+
+        verify(marketDataService, never()).findTradableStock(any());
+        verify(ledgerTransactionRepository, never()).save(any());
+    }
+
+    private TradeOrder pendingLimit(OrderSide side) {
+        TradeOrder order = new TradeOrder();
+        order.setId(UUID.randomUUID());
+        order.setUser(user);
+        order.setPortfolio(portfolio);
+        order.setStock(stock);
+        order.setSide(side);
+        order.setType(OrderType.LIMIT);
+        order.setQuantity(BigDecimal.ONE);
+        order.setLimitPrice(stock.getLastPrice());
+        when(pendingOrder.getUserId()).thenReturn(user.getId());
+        when(pendingOrder.getId()).thenReturn(order.getId());
+        when(userRepository.findByIdForUpdate(user.getId())).thenReturn(Optional.of(user));
+        when(orderRepository.findById(order.getId())).thenReturn(Optional.of(order));
+        return order;
     }
 
     private TradingDtos.OrderRequest orderRequest(String clientOrderId) {

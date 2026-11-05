@@ -3,12 +3,14 @@ package com.ledgerone.scheduler;
 import com.ledgerone.service.MarketDataService;
 import com.ledgerone.service.TradingService;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 
 @Component
 @RequiredArgsConstructor
+@Slf4j
 public class MarketSimulatorScheduler {
     private final MarketDataService marketDataService;
     private final TradingService tradingService;
@@ -22,6 +24,12 @@ public class MarketSimulatorScheduler {
             return;
         }
         marketDataService.simulateTick();
-        tradingService.fillEligibleLimitOrders();
+        tradingService.pendingOrders().forEach(order -> {
+            try {
+                tradingService.fillPendingOrder(order);
+            } catch (RuntimeException exception) {
+                log.warn("Could not process pending order {}", order.getId(), exception);
+            }
+        });
     }
 }

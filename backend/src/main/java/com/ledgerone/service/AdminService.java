@@ -47,7 +47,7 @@ public class AdminService {
 
     @Transactional
     public AdminDtos.AdminActionResponse freeze(UserAccount admin, UUID userId) {
-        UserAccount user = userRepository.findById(userId).orElseThrow(() -> new ResourceNotFoundException("User not found"));
+        UserAccount user = userRepository.findByIdForUpdate(userId).orElseThrow(() -> new ResourceNotFoundException("User not found"));
         user.setStatus(AccountStatus.FROZEN);
         auditService.record(admin, AuditAction.ADMIN_ACTION, "Freeze account", user.getEmail());
         return new AdminDtos.AdminActionResponse(user.getId(), user.getStatus(), "Account frozen");
@@ -55,7 +55,7 @@ public class AdminService {
 
     @Transactional
     public AdminDtos.AdminActionResponse unfreeze(UserAccount admin, UUID userId) {
-        UserAccount user = userRepository.findById(userId).orElseThrow(() -> new ResourceNotFoundException("User not found"));
+        UserAccount user = userRepository.findByIdForUpdate(userId).orElseThrow(() -> new ResourceNotFoundException("User not found"));
         user.setStatus(AccountStatus.ACTIVE);
         auditService.record(admin, AuditAction.ADMIN_ACTION, "Unfreeze account", user.getEmail());
         return new AdminDtos.AdminActionResponse(user.getId(), user.getStatus(), "Account unfrozen");

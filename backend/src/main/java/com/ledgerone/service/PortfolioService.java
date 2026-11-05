@@ -46,9 +46,7 @@ public class PortfolioService {
         if (allocation.compareTo(Money.ZERO) <= 0) {
             throw new BadRequestException("Initial allocation must be greater than zero");
         }
-        UserAccount managedUser = userRepository
-                .findByIdForUpdate(user.getId())
-                .orElseThrow(() -> new ResourceNotFoundException("Authenticated user not found"));
+        UserAccount managedUser = lockAccount(user);
         if (portfolioRepository.findFirstByUserAndActiveTrueOrderByCreatedAtAsc(managedUser).isPresent()) {
             throw new ConflictException("Each user has one paper trading account");
         }
@@ -70,9 +68,10 @@ public class PortfolioService {
 
     @Transactional
     public PortfolioDtos.PortfolioResponse rename(UserAccount user, UUID portfolioId, PortfolioDtos.PortfolioRenameRequest request) {
-        Portfolio portfolio = getOwnedPortfolio(user, portfolioId);
+        UserAccount managedUser = lockAccount(user);
+        Portfolio portfolio = getOwnedPortfolio(managedUser, portfolioId);
         String name = cleanName(request.name());
-        if (portfolioRepository.existsByUserAndActiveTrueAndNameIgnoreCaseAndIdNot(user, name, portfolioId)) {
+        if (portfolioRepository.existsByUserAndActiveTrueAndNameIgnoreCaseAndIdNot(managedUser, name, portfolioId)) {
             throw new ConflictException("Portfolio name already exists");
         }
         portfolio.setName(name);
@@ -88,18 +87,21 @@ public class PortfolioService {
 
     @Transactional
     public void archiveEmptyPortfolio(UserAccount user, UUID portfolioId) {
-        Portfolio portfolio = getOwnedPortfolio(user, portfolioId);
+        UserAccount managedUser = lockAccount(user);
+        Portfolio portfolio = getOwnedPortfolio(managedUser, portfolioId);
         List<Holding> holdings = holdingRepository.findByPortfolioAndQuantityGreaterThan(portfolio, BigDecimal.ZERO);
         if (!holdings.isEmpty()) {
             throw new BadRequestException("Liquidate holdings before deleting a portfolio");
         }
-        UserAccount managedUser = userRepository
-                .findByIdForUpdate(user.getId())
-                .orElseThrow(() -> new ResourceNotFoundException("Authenticated user not found"));
         managedUser.setAccountCashBalance(Money.money(managedUser.getAccountCashBalance().add(portfolio.getCashBalance())));
         portfolio.setCashBalance(Money.ZERO);
         portfolio.setActive(false);
         auditService.record(user, AuditAction.PORTFOLIO_UPDATE, "Paper account archived", portfolio.getName());
+    }
+
+    private UserAccount lockAccount(UserAccount user) {
+        return userRepository.findByIdForUpdate(user.getId())
+                .orElseThrow(() -> new ResourceNotFoundException("Authenticated user not found"));
     }
 
     @Transactional(readOnly = true)

@@ -24,9 +24,11 @@ import com.ledgerone.notification.NotificationService;
 import com.ledgerone.repository.HoldingRepository;
 import com.ledgerone.repository.LedgerTransactionRepository;
 import com.ledgerone.repository.TradeOrderRepository;
+import com.ledgerone.repository.UserAccountRepository;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.time.Instant;
+import java.util.List;
 import java.util.UUID;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Pageable;
@@ -37,6 +39,7 @@ import org.springframework.transaction.annotation.Transactional;
 @RequiredArgsConstructor
 public class TradingService {
     private final TradeOrderRepository orderRepository;
+    private final UserAccountRepository userRepository;
     private final HoldingRepository holdingRepository;
     private final LedgerTransactionRepository ledgerTransactionRepository;
     private final PortfolioService portfolioService;
@@ -49,7 +52,8 @@ public class TradingService {
     private final RiskService riskService;
 
     @Transactional
-    public TradingDtos.OrderResponse placeOrder(UserAccount user, TradingDtos.OrderRequest request) {
+    public TradingDtos.OrderResponse placeOrder(UUID userId, TradingDtos.OrderRequest request) {
+        UserAccount user = lockUser(userId);
         if (user.isFrozen()) {
             throw new ForbiddenOperationException("Frozen accounts cannot place orders");
         }
@@ -66,13 +70,21 @@ public class TradingService {
     }
 
     @Transactional(readOnly = true)
+    public TradingDtos.OrderResponse findOrder(UserAccount user, String clientOrderId) {
+        return orderRepository.findByUserAndClientOrderId(user, clientOrderId)
+                .map(tradeOrderMapper::toResponse)
+                .orElseThrow(() -> new ResourceNotFoundException("Order has not been recorded"));
+    }
+
+    @Transactional(readOnly = true)
     public PageResponse<TradingDtos.TransactionResponse> listTransactions(UserAccount user, UUID portfolioId, Pageable pageable) {
         Portfolio portfolio = portfolioService.getOwnedPortfolio(user, portfolioId);
         return PageResponse.from(ledgerTransactionRepository.findByPortfolio(portfolio, pageable).map(transactionMapper::toResponse));
     }
 
     @Transactional
-    public TradingDtos.OrderResponse cancel(UserAccount user, UUID orderId) {
+    public TradingDtos.OrderResponse cancel(UUID userId, UUID orderId) {
+        UserAccount user = lockUser(userId);
         TradeOrder order = orderRepository
                 .findById(orderId)
                 .orElseThrow(() -> new ResourceNotFoundException("Order not found"));
@@ -88,18 +100,34 @@ public class TradingService {
         return tradeOrderMapper.toResponse(order);
     }
 
+    @Transactional(readOnly = true)
+    public List<TradeOrderRepository.PendingOrder> pendingOrders() {
+        return orderRepository.findOrderReferencesByStatus(OrderStatus.PENDING);
+    }
+
     @Transactional
-    public void fillEligibleLimitOrders() {
-        orderRepository.findByStatus(OrderStatus.PENDING).forEach(order -> {
-            Stock refreshedStock = marketDataService.findTradableStock(order.getStock().getSymbol());
-            BigDecimal marketPrice = refreshedStock.getLastPrice();
-            boolean executable = order.getSide() == OrderSide.BUY
-                    ? order.getLimitPrice().compareTo(marketPrice) >= 0
-                    : order.getLimitPrice().compareTo(marketPrice) <= 0;
-            if (executable) {
+    public void fillPendingOrder(TradeOrderRepository.PendingOrder reference) {
+        UserAccount user = lockUser(reference.getUserId());
+        TradeOrder order = orderRepository.findById(reference.getId()).orElse(null);
+        if (user.isFrozen() || order == null || order.getStatus() != OrderStatus.PENDING
+                || !order.getPortfolio().isActive()) {
+            return;
+        }
+        BigDecimal marketPrice = marketDataService.findTradableStock(order.getStock().getSymbol()).getLastPrice();
+        if (canFillLimit(order, marketPrice)) {
+            String failure = validateFundsOrShares(order, marketPrice);
+            if (failure == null) {
                 fill(order, marketPrice);
+            } else {
+                reject(order, failure);
             }
-        });
+        }
+    }
+
+    private UserAccount lockUser(UUID userId) {
+        // Serialize cash, holding, and order changes for this account across API and worker replicas.
+        return userRepository.findByIdForUpdate(userId)
+                .orElseThrow(() -> new ResourceNotFoundException("Authenticated user not found"));
     }
 
     private TradeOrder createOrder(UserAccount user, TradingDtos.OrderRequest request) {
@@ -133,7 +161,11 @@ public class TradingService {
             return "Limit orders require a limit price";
         }
         BigDecimal valuationPrice = order.getType() == OrderType.LIMIT ? order.getLimitPrice() : order.getStock().getLastPrice();
-        BigDecimal gross = Money.money(valuationPrice.multiply(order.getQuantity()));
+        return validateFundsOrShares(order, valuationPrice);
+    }
+
+    private String validateFundsOrShares(TradeOrder order, BigDecimal price) {
+        BigDecimal gross = Money.money(price.multiply(order.getQuantity()));
         BigDecimal fee = calculateFee(gross);
         order.setFees(fee);
         if (order.getSide() == OrderSide.BUY) {

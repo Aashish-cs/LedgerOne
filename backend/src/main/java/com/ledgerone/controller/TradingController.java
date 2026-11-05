@@ -25,12 +25,12 @@ public class TradingController {
 
     @PostMapping("/orders")
     ApiResponse<TradingDtos.OrderResponse> place(@Valid @RequestBody TradingDtos.OrderRequest request) {
-        return ApiResponse.ok("Order accepted", tradingService.placeOrder(currentUser.entity(), request));
+        return ApiResponse.ok("Order accepted", tradingService.placeOrder(currentUser.principal().id(), request));
     }
 
     @PostMapping("/orders/{orderId}/cancel")
     ApiResponse<TradingDtos.OrderResponse> cancel(@PathVariable UUID orderId) {
-        return ApiResponse.ok("Order cancelled", tradingService.cancel(currentUser.entity(), orderId));
+        return ApiResponse.ok("Order cancelled", tradingService.cancel(currentUser.principal().id(), orderId));
     }
 
     @GetMapping("/portfolios/{portfolioId}/orders")

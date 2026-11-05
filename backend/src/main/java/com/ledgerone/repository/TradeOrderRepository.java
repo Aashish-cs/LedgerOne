@@ -11,8 +11,14 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.EntityGraph;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Query;
 
 public interface TradeOrderRepository extends JpaRepository<TradeOrder, UUID> {
+    interface PendingOrder {
+        UUID getId();
+        UUID getUserId();
+    }
+
     Optional<TradeOrder> findByUserAndClientOrderId(UserAccount user, String clientOrderId);
 
     @EntityGraph(attributePaths = {"stock", "portfolio"})
@@ -21,8 +27,11 @@ public interface TradeOrderRepository extends JpaRepository<TradeOrder, UUID> {
     @EntityGraph(attributePaths = {"stock", "portfolio", "user"})
     Page<TradeOrder> findAllBy(Pageable pageable);
 
-    @EntityGraph(attributePaths = {"stock", "portfolio", "user"})
-    List<TradeOrder> findByStatus(OrderStatus status);
+    @Query("""
+            select o.id as id, o.user.id as userId from TradeOrder o
+            where o.status = :status order by o.createdAt, o.id
+            """)
+    List<PendingOrder> findOrderReferencesByStatus(OrderStatus status);
 
     long countByPortfolioAndStatus(Portfolio portfolio, OrderStatus status);
 }

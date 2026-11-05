@@ -26,6 +26,10 @@ The goal is not to be a brokerage. It is a recruiter-ready full-stack fintech pr
 - Admin views for users, orders, audit logs, and risk alerts
 - Render backend Blueprint and Vercel frontend deployment
 
+The live app uses synchronous REST trading on Render/Vercel. The
+[distributed trading lab](docs/distributed-trading.md) adds a separate, opt-in Kafka
+order API and consumer workers, with Kubernetes deployment templates and repeatable local benchmarks.
+
 ## Architecture
 
 ```mermaid
@@ -63,8 +67,9 @@ The Spring Boot code is organized by ownership boundary:
 Important backend rules:
 
 - Only one active paper account is allowed per user.
-- Buy orders require enough cash after estimated fees.
-- Sell orders require enough shares.
+- Buy orders require enough cash including fees; sell orders require enough shares. Pending limit
+  orders do not reserve cash or shares and are revalidated before execution.
+- PostgreSQL account-row locks serialize order writes for the same user across requests and workers.
 - Duplicate `clientOrderId` requests return the existing order.
 - Executed orders update cash, holdings, ledger transactions, notifications, risk, and audit logs inside transactional services.
 - Live quote failures surface as API errors instead of silently using fake prices.
