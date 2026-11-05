@@ -1,16 +1,20 @@
 # LedgerOne
 
-Full-stack stock paper-trading platform with live quote search, buying-power checks, watchlists, trade history, JWT authentication, admin review tools, and a Spring Boot/PostgreSQL backend.
+LedgerOne is a full-stack stock paper-trading simulator built with React, TypeScript, Spring Boot, and PostgreSQL. Start with $100,000 in virtual buying power, place simulated trades, and track holdings, performance, and trade history. LedgerOne never routes orders to a broker.
 
-[Live App](https://ledger-one-mocha.vercel.app) · [Backend Health](https://ledgerone-api-litx.onrender.com/actuator/health) · [API Status](https://ledgerone-api-litx.onrender.com/api/system/status)
+[Hosted Demo](https://ledger-one-mocha.vercel.app) · [Kafka Source](https://github.com/Aashish-cs/LedgerOne/tree/distributed-trading-lab) · [AWS Runbook](https://github.com/Aashish-cs/LedgerOne/blob/distributed-trading-lab/docs/aws-sandbox.md)
 
 ![LedgerOne account dashboard](docs/assets/ledgerone-dashboard.png)
 
-## Overview
+## Environments
 
-LedgerOne is a production-style paper trading app. A user signs in, receives one funded paper trading account with `$100,000` buying power, searches real stock symbols, reviews live quote data, places simulated buy/sell orders, tracks holdings, and monitors risk/account activity.
+| Environment | Order flow | Status |
+| --- | --- | --- |
+| Hosted demo (`main`) | React on Vercel → Spring Boot on Render → PostgreSQL | Hosted configuration; orders use the synchronous REST API |
+| [Distributed trading lab](https://github.com/Aashish-cs/LedgerOne/tree/distributed-trading-lab) | Spring Boot → Apache Kafka → consumer group → PostgreSQL | Implemented and verified locally and in [GitHub Actions](https://github.com/Aashish-cs/LedgerOne/actions/runs/41956740968) |
+| [AWS sandbox](https://github.com/Aashish-cs/LedgerOne/blob/distributed-trading-lab/docs/aws-sandbox.md) | Kubernetes on EKS, managed Kafka on MSK, PostgreSQL on RDS, images on ECR | Terraform and Kubernetes configuration validated; not provisioned or deployed |
 
-The goal is not to be a brokerage. It is a recruiter-ready full-stack fintech project that demonstrates secure authentication, transactional backend workflows, database-backed trading state, live market-data integration, and a polished React dashboard.
+The Kafka and AWS code is on `distributed-trading-lab`. It does not change how the hosted demo places orders.
 
 ## Highlights
 
@@ -26,7 +30,7 @@ The goal is not to be a brokerage. It is a recruiter-ready full-stack fintech pr
 - Admin views for users, orders, audit logs, and risk alerts
 - Render backend Blueprint and Vercel frontend deployment
 
-## Architecture
+## Hosted Architecture
 
 ```mermaid
 flowchart LR
@@ -44,6 +48,22 @@ flowchart LR
 ```
 
 The backend is the source of truth. The React app never calls Finnhub directly and never trusts frontend-calculated prices for execution. The API refreshes quotes before order placement and records orders, ledger transactions, holdings, notifications, audit logs, and risk alerts in PostgreSQL.
+
+## Kafka Order Flow
+
+```mermaid
+flowchart LR
+  UI["React order ticket"] -->|"POST /api/orders/queued"| API["Spring Boot API"]
+  API -->|"Publish keyed by user ID"| Kafka[("Apache Kafka")]
+  Kafka -->|"Consume as a group"| Workers["Order workers"]
+  Workers -->|"Order, cash, holdings, ledger"| DB[("PostgreSQL")]
+  UI -->|"Look up by client order ID"| API
+  API -->|"Read order status"| DB
+```
+
+The API returns HTTP 202 after Kafka acknowledges the message. That means **queued**, not **filled**. A worker applies the trading rules and commits changes to the order, cash, holdings, and ledger together. Per-account row locking and a unique client order ID per user prevent concurrent double spending and duplicate fills on replay. Pending limit orders are rechecked when eligible to fill.
+
+The AWS configuration adds separate Kubernetes workloads for the React frontend, API, workers, and scheduler. It includes startup, readiness, and liveness probes, plus horizontal pod autoscaling for the API and workers. See the [Kafka design and benchmarks](https://github.com/Aashish-cs/LedgerOne/blob/distributed-trading-lab/docs/distributed-trading.md) and [AWS deployment runbook](https://github.com/Aashish-cs/LedgerOne/blob/distributed-trading-lab/docs/aws-sandbox.md).
 
 ## Backend Design
 
@@ -100,8 +120,10 @@ The frontend is a Vite React app with:
 | Database | PostgreSQL |
 | Frontend | React, TypeScript, Vite, Tailwind CSS, React Router |
 | Data/UI | TanStack Query, Axios, React Hook Form, Recharts, Lucide |
-| Testing | JUnit 5, Mockito, Maven, Oxlint, TypeScript build |
-| Deployment | Docker, Render Blueprint, Vercel, GitHub |
+| Testing | JUnit 5, Mockito, Maven, Oxlint, TypeScript build, GitHub Actions |
+| Hosted deployment | Docker, Render Blueprint, Vercel |
+| Distributed lab | Spring for Apache Kafka, Kafka consumer groups, Docker Compose |
+| AWS deployment configuration | Terraform, Kubernetes, Kustomize, EKS, MSK, RDS, ECR |
 
 ## Demo Accounts
 
@@ -134,7 +156,7 @@ cd backend
 
 ```bash
 cd frontend
-npm install
+npm ci
 npm run dev
 ```
 
@@ -183,7 +205,9 @@ npm run lint
 npm run build
 ```
 
-Current focused test coverage includes JWT, Render database URL conversion, quote parsing/cache behavior, ticker validation, risk calculation, and trading/portfolio service workflows.
+The schema contains **14 application tables** managed by Flyway. The [verified lab revision](https://github.com/Aashish-cs/LedgerOne/commit/1cf941cc24153ba8c2ee26570f5327cf39616cae) passes **22 backend tests**. CI also builds the frontend, validates AWS configuration, and runs a Kafka/PostgreSQL smoke test that checks fills, cash balances, duplicate replay, and competing buys.
+
+The [local benchmark](https://github.com/Aashish-cs/LedgerOne/blob/distributed-trading-lab/docs/distributed-trading.md#local-verification) reports broker acknowledgements separately from verified database fills. These are local measurements, not a production throughput or uptime claim.
 
 ## Deployment
 
@@ -212,7 +236,3 @@ Representative endpoints:
 | `GET` | `/api/watchlist` | User watchlist |
 | `GET` | `/api/admin/users` | Admin user review |
 | `GET` | `/api/admin/audit-logs` | Admin audit trail |
-
-## Resume Summary
-
-LedgerOne is a full-stack stock paper-trading platform built with React, TypeScript, Spring Boot, PostgreSQL, JWT auth, Flyway, and live market-data integrations. It supports a funded single-account trading model, live stock search, buy/sell execution, buying-power validation, holdings and P/L tracking, watchlists, admin/audit workflows, and deployment across Vercel and Render.
