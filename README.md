@@ -29,6 +29,8 @@ The goal is not to be a brokerage. It is a recruiter-ready full-stack fintech pr
 The live app uses synchronous REST trading on Render/Vercel. The
 [distributed trading lab](docs/distributed-trading.md) adds a separate, opt-in Kafka
 order API and consumer workers, with Kubernetes deployment templates and repeatable local benchmarks.
+The [AWS sandbox runbook](docs/aws-sandbox.md) covers deploying the React frontend, API,
+and workers to EKS with managed MSK and RDS. That setup is separate from the hosted demo.
 
 ## Architecture
 

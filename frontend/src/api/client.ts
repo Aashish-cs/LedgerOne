@@ -19,6 +19,7 @@ import type {
 } from '../types'
 
 export const API_BASE_URL = import.meta.env.VITE_API_BASE_URL ?? 'http://localhost:8080/api'
+const queuedOrdersEnabled = import.meta.env.VITE_QUEUED_ORDERS === 'true'
 
 const ACCESS_TOKEN_KEY = 'ledgerone.accessToken'
 const REFRESH_TOKEN_KEY = 'ledgerone.refreshToken'
@@ -145,6 +146,26 @@ export function getApiErrorMessage(error: unknown, fallback = 'Request failed') 
   return error instanceof Error ? error.message : fallback
 }
 
+async function placeOrder(request: OrderRequest): Promise<Order> {
+  if (!queuedOrdersEnabled) {
+    return http.post<ApiResponse<Order>>('/orders', request).then(unwrap)
+  }
+  await http.post<ApiResponse<{ clientOrderId: string }>>('/orders/queued', request, { timeout: 12_000 }).then(unwrap)
+  const deadline = Date.now() + 15_000
+  while (Date.now() < deadline) {
+    try {
+      return await http.get<ApiResponse<Order>>('/orders/queued', {
+        params: { clientOrderId: request.clientOrderId },
+        timeout: 3_000,
+      }).then(unwrap)
+    } catch (error) {
+      if (!axios.isAxiosError(error) || error.response?.status !== 404) throw error
+    }
+    await new Promise<void>((resolve) => window.setTimeout(resolve, 500))
+  }
+  throw new Error('Order was queued but is not yet visible. Check Orders or retry with the same client order ID.')
+}
+
 export const api = {
   login: (email: string, password: string) =>
     http.post<ApiResponse<AuthResponse>>('/auth/login', { email, password }).then(unwrap),
@@ -167,7 +188,7 @@ export const api = {
   quoteStock: (symbol: string) => http.get<ApiResponse<Stock>>(`/market/stocks/${encodeURIComponent(symbol)}`).then(unwrap),
   orders: (portfolioId: string) =>
     http.get<ApiResponse<PageResponse<Order>>>(`/portfolios/${portfolioId}/orders`, { params: { size: 20 } }).then(unwrap),
-  placeOrder: (request: OrderRequest) => http.post<ApiResponse<Order>>('/orders', request).then(unwrap),
+  placeOrder,
   cancelOrder: (orderId: string) => http.post<ApiResponse<Order>>(`/orders/${orderId}/cancel`).then(unwrap),
   watchlist: () => http.get<ApiResponse<WatchlistItem[]>>('/watchlist').then(unwrap),
   addWatchlist: (symbol: string) => http.post<ApiResponse<WatchlistItem>>('/watchlist', { symbol }).then(unwrap),

@@ -56,7 +56,7 @@ class QueuedOrderController {
         } catch (InterruptedException exception) {
             Thread.currentThread().interrupt();
             return unavailable();
-        } catch (ExecutionException | TimeoutException | KafkaException exception) {
+        } catch (ExecutionException | TimeoutException | KafkaException | org.apache.kafka.common.KafkaException exception) {
             return unavailable();
         }
     }

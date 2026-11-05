@@ -80,6 +80,9 @@ These are single-run query execution times, not API latency or a general databas
 
 ## Kubernetes and AWS EKS
 
+For a full AWS sandbox, follow the [Terraform and EKS runbook](aws-sandbox.md). The generic
+Kubernetes base below is also usable without AWS.
+
 The [Kustomize templates](../deploy/kubernetes/) define separate API, worker, and singleton
 market-scheduler workloads, startup/readiness/liveness probes, and CPU-based autoscaling for
 the API and worker. The worker replica ceiling matches the six partitions in the local lab.

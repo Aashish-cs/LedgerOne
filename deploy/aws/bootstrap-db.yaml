@@ -1,0 +1,47 @@
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: ledgerone-db-bootstrap
+spec:
+  backoffLimit: 0
+  activeDeadlineSeconds: 120
+  ttlSecondsAfterFinished: 300
+  template:
+    spec:
+      automountServiceAccountToken: false
+      restartPolicy: Never
+      volumes:
+        - name: rds-ca
+          configMap:
+            name: ledgerone-rds-ca
+      containers:
+        - name: postgres
+          image: postgres:16-alpine
+          envFrom:
+            - secretRef:
+                name: ledgerone-db-bootstrap
+          env:
+            - name: PGSSLMODE
+              value: verify-full
+            - name: PGSSLROOTCERT
+              value: /etc/ledgerone/rds/rds-ca.pem
+            - name: PGCONNECT_TIMEOUT
+              value: "10"
+          volumeMounts:
+            - name: rds-ca
+              mountPath: /etc/ledgerone/rds
+              readOnly: true
+          command: [sh, -ec]
+          args:
+            - |
+              psql --no-password --set ON_ERROR_STOP=on <<'SQL'
+              \getenv password APP_PASSWORD
+              BEGIN;
+              CREATE EXTENSION IF NOT EXISTS pgcrypto;
+              SELECT format('CREATE ROLE ledgerone_app LOGIN PASSWORD %L', :'password')
+              WHERE NOT EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'ledgerone_app') \gexec
+              ALTER ROLE ledgerone_app PASSWORD :'password';
+              GRANT CONNECT ON DATABASE ledgerone TO ledgerone_app;
+              GRANT USAGE, CREATE ON SCHEMA public TO ledgerone_app;
+              COMMIT;
+              SQL

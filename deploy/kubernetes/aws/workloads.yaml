@@ -1,0 +1,86 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: ledgerone-api
+spec:
+  template:
+    spec:
+      serviceAccountName: ledgerone-api
+      securityContext:
+        fsGroup: 10001
+      topologySpreadConstraints:
+        - maxSkew: 1
+          topologyKey: topology.kubernetes.io/zone
+          whenUnsatisfiable: ScheduleAnyway
+          labelSelector:
+            matchLabels:
+              app: ledgerone-api
+      volumes:
+        - name: rds-ca
+          configMap:
+            name: ledgerone-rds-ca
+      containers:
+        - name: ledgerone
+          env:
+            - name: SPRING_PROFILES_ACTIVE
+              value: order-api,aws
+            - name: AWS_ROLE_SESSION_NAME
+              value: ledgerone-api
+          volumeMounts:
+            - name: rds-ca
+              mountPath: /etc/ledgerone/rds
+              readOnly: true
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: ledgerone-order-worker
+spec:
+  template:
+    spec:
+      serviceAccountName: ledgerone-worker
+      securityContext:
+        fsGroup: 10001
+      topologySpreadConstraints:
+        - maxSkew: 1
+          topologyKey: topology.kubernetes.io/zone
+          whenUnsatisfiable: ScheduleAnyway
+          labelSelector:
+            matchLabels:
+              app: ledgerone-order-worker
+      volumes:
+        - name: rds-ca
+          configMap:
+            name: ledgerone-rds-ca
+      containers:
+        - name: ledgerone
+          env:
+            - name: SPRING_PROFILES_ACTIVE
+              value: order-worker,aws
+            - name: AWS_ROLE_SESSION_NAME
+              value: ledgerone-worker
+          volumeMounts:
+            - name: rds-ca
+              mountPath: /etc/ledgerone/rds
+              readOnly: true
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: ledgerone-market-scheduler
+spec:
+  template:
+    spec:
+      volumes:
+        - name: rds-ca
+          configMap:
+            name: ledgerone-rds-ca
+      containers:
+        - name: ledgerone
+          env:
+            - name: SPRING_PROFILES_ACTIVE
+              value: scheduler,aws
+          volumeMounts:
+            - name: rds-ca
+              mountPath: /etc/ledgerone/rds
+              readOnly: true
