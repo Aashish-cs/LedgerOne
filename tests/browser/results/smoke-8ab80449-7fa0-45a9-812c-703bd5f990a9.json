@@ -1,0 +1,10 @@
+{
+  "at": "2026-11-06T03:58:46.619Z",
+  "checks": [
+    "UI registration creates one $100K paper account",
+    "Queued UI buy fills and refreshes visible buying power/holdings"
+  ],
+  "errors": [],
+  "passed": false,
+  "error": "TypeError: Cannot read properties of undefined (reading 'quantity')"
+}

@@ -1,0 +1,12 @@
+{
+  "at": "2026-11-06T04:04:43.185Z",
+  "checks": [
+    "UI registration creates one $100K paper account",
+    "Queued UI buy fills and refreshes visible buying power/holdings",
+    "UI sell restores cash less two $1 fees and leaves zero shares",
+    "Watchlist add and remove persist through real API",
+    "390px mobile rendering has no page overflow or uncaught JS errors"
+  ],
+  "errors": [],
+  "passed": true
+}

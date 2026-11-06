@@ -1,0 +1,10 @@
+Observed local failure on 2026-11-05:
+Command: BENCH_URL=http://127.0.0.1:18090 RATE=100 SECONDS=3 ACCOUNTS=8 KUBECTL=/tmp/ledgerone-kubectl node tests/performance/load.mjs
+The first attempt failed before a load result could be saved:
+[DOMException [TimeoutError]: The operation was aborted due to timeout]
+Node.js v26.4.0
+
+At the same time, the Mac had 112 MiB available and Docker reported input/output
+errors while extracting Trivy's vulnerability database. No throughput is inferred
+from this failed fixture attempt. The later instrumented harness saves failures
+as structured JSON as well as successful runs.

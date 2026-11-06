@@ -14,6 +14,11 @@ import org.springframework.web.bind.annotation.RestControllerAdvice;
 
 @RestControllerAdvice
 public class GlobalExceptionHandler {
+    @ExceptionHandler(org.springframework.dao.DataIntegrityViolationException.class)
+    ResponseEntity<ApiResponse<Map<String, String>>> integrityConflict() {
+        return error(HttpStatus.CONFLICT, "Request conflicts with existing data or account constraints");
+    }
+
     @ExceptionHandler(ResourceNotFoundException.class)
     ResponseEntity<ApiResponse<Map<String, String>>> notFound(ResourceNotFoundException exception) {
         return error(HttpStatus.NOT_FOUND, exception.getMessage());

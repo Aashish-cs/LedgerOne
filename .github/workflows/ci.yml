@@ -18,7 +18,14 @@ jobs:
           distribution: temurin
           java-version: "21"
           cache: maven
-      - run: ./mvnw test
+      - run: ./mvnw -Pintegration verify
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: java-test-reports
+          path: |
+            backend/target/surefire-reports/
+            backend/target/failsafe-reports/
 
   frontend:
     name: Frontend
@@ -36,6 +43,7 @@ jobs:
       - run: npm ci
       - run: npm run lint
       - run: npm run build
+      - run: npm audit --omit=dev --audit-level=high
 
   queued-orders:
     name: Kafka and PostgreSQL smoke test
@@ -76,9 +84,27 @@ jobs:
       - run: terraform -chdir=deploy/aws fmt -check
       - run: terraform -chdir=deploy/aws init -backend=false -input=false
       - run: terraform -chdir=deploy/aws validate
+      - run: terraform -chdir=infra/aws fmt -check
+      - run: terraform -chdir=infra/aws init -backend=false -input=false
+      - run: terraform -chdir=infra/aws validate
       - name: Validate Kubernetes resources
         shell: bash
         run: |
           bash -n deploy/aws/deploy.sh
           kubectl kustomize deploy/kubernetes/aws | docker run --rm -i ghcr.io/yannh/kubeconform:v0.6.7 -strict -summary -kubernetes-version 1.35.0
           docker run --rm -i ghcr.io/yannh/kubeconform:v0.6.7 -strict -summary -kubernetes-version 1.35.0 < deploy/aws/bootstrap-db.yaml
+          kubectl kustomize deploy/kubernetes/local | docker run --rm -i ghcr.io/yannh/kubeconform:v0.6.7 -strict -summary -kubernetes-version 1.35.0
+
+  container-security:
+    name: Build and scan container images
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - run: docker build -t ledgerone-backend:ci backend
+      - run: docker build --build-arg VITE_QUEUED_ORDERS=true -t ledgerone-frontend:ci frontend
+      - name: Scan backend image
+        run: docker run --rm -v /var/run/docker.sock:/var/run/docker.sock aquasec/trivy:0.76.2 image --scanners vuln --severity HIGH,CRITICAL --exit-code 1 ledgerone-backend:ci
+      - name: Scan frontend image
+        if: always()
+        run: docker run --rm -v /var/run/docker.sock:/var/run/docker.sock aquasec/trivy:0.76.2 image --scanners vuln --severity HIGH,CRITICAL --exit-code 1 ledgerone-frontend:ci

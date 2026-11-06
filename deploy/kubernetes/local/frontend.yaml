@@ -1,0 +1,44 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: ledgerone-frontend
+spec:
+  replicas: 1
+  selector:
+    matchLabels: {app: ledgerone-frontend}
+  template:
+    metadata:
+      labels: {app: ledgerone-frontend}
+    spec:
+      automountServiceAccountToken: false
+      containers:
+        - name: frontend
+          image: ledgerone-frontend:replace-me
+          ports: [{name: http, containerPort: 8080}]
+          securityContext:
+            runAsNonRoot: true
+            allowPrivilegeEscalation: false
+            capabilities: {drop: [ALL]}
+          resources:
+            requests: {cpu: 50m, memory: 64Mi}
+            limits: {memory: 128Mi}
+          readinessProbe:
+            httpGet: {path: /, port: http}
+          livenessProbe:
+            httpGet: {path: /, port: http}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: ledgerone-frontend
+spec:
+  selector: {app: ledgerone-frontend}
+  ports: [{port: 80, targetPort: http}]
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: backend
+spec:
+  selector: {app: ledgerone-api}
+  ports: [{port: 8080, targetPort: http}]

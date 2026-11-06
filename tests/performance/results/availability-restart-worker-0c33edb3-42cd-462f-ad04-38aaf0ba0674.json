@@ -1,0 +1,618 @@
+{
+  "at": "2026-11-06T03:46:44.782Z",
+  "action": "restart-worker",
+  "durationSeconds": 20,
+  "endpoint": "/api/system/status",
+  "attempts": 117,
+  "successful": 117,
+  "failed": 0,
+  "requestSuccessPercent": 100,
+  "sampledUnavailableMs": 0,
+  "longestObservedOutageMs": 0,
+  "estimatedSampledTimeAvailabilityPercent": 100,
+  "limitations": [
+    "A public status read is not a successful trade.",
+    "Polling gives an approximate outage duration, not a continuous-time measurement.",
+    "A short local test cannot substantiate 99.99% long-term uptime."
+  ],
+  "events": [
+    {
+      "atMs": 5625.370875,
+      "command": [
+        "delete",
+        "pod",
+        "-l",
+        "app=ledgerone-order-worker",
+        "--wait=false"
+      ],
+      "output": "pod \"ledgerone-order-worker-5c9dd8764f-2bpzw\" deleted from ledgerone-local namespace\npod \"ledgerone-order-worker-5c9dd8764f-l5kwd\" deleted from ledgerone-local namespace\npod \"ledgerone-order-worker-5c9dd8764f-vmlxx\" deleted from ledgerone-local namespace\n"
+    }
+  ],
+  "samples": [
+    {
+      "atMs": 0.0008750000000006253,
+      "status": 200,
+      "latencyMs": 130.19429200000002
+    },
+    {
+      "atMs": 230.04650000000004,
+      "status": 200,
+      "latencyMs": 78.479917
+    },
+    {
+      "atMs": 408.671042,
+      "status": 200,
+      "latencyMs": 16.729375000000005
+    },
+    {
+      "atMs": 526.7981249999999,
+      "status": 200,
+      "latencyMs": 17.495750000000044
+    },
+    {
+      "atMs": 645.706375,
+      "status": 200,
+      "latencyMs": 118.21124999999995
+    },
+    {
+      "atMs": 864.545792,
+      "status": 200,
+      "latencyMs": 11.247208
+    },
+    {
+      "atMs": 976.7718339999999,
+      "status": 200,
+      "latencyMs": 17.813416000000075
+    },
+    {
+      "atMs": 1094.909167,
+      "status": 200,
+      "latencyMs": 10.606250000000045
+    },
+    {
+      "atMs": 1207.1206670000001,
+      "status": 200,
+      "latencyMs": 16.466249999999945
+    },
+    {
+      "atMs": 1324.74925,
+      "status": 200,
+      "latencyMs": 42.64104199999997
+    },
+    {
+      "atMs": 1468.5665840000001,
+      "status": 200,
+      "latencyMs": 18.15274999999997
+    },
+    {
+      "atMs": 1587.839709,
+      "status": 200,
+      "latencyMs": 44.71262499999989
+    },
+    {
+      "atMs": 1733.271167,
+      "status": 200,
+      "latencyMs": 10.397375000000011
+    },
+    {
+      "atMs": 1844.57175,
+      "status": 200,
+      "latencyMs": 23.45679199999995
+    },
+    {
+      "atMs": 1968.7095000000002,
+      "status": 200,
+      "latencyMs": 7.641750000000002
+    },
+    {
+      "atMs": 2078.072834,
+      "status": 200,
+      "latencyMs": 6.444540999999845
+    },
+    {
+      "atMs": 2185.8918750000003,
+      "status": 200,
+      "latencyMs": 5.987083999999868
+    },
+    {
+      "atMs": 2292.515292,
+      "status": 200,
+      "latencyMs": 7.214582999999948
+    },
+    {
+      "atMs": 2399.908792,
+      "status": 200,
+      "latencyMs": 9.33962500000007
+    },
+    {
+      "atMs": 2508.841375,
+      "status": 200,
+      "latencyMs": 17.626416999999947
+    },
+    {
+      "atMs": 2627.4354590000003,
+      "status": 200,
+      "latencyMs": 10.032665999999608
+    },
+    {
+      "atMs": 2738.29575,
+      "status": 200,
+      "latencyMs": 19.320334000000003
+    },
+    {
+      "atMs": 2859.333709,
+      "status": 200,
+      "latencyMs": 5.989583000000039
+    },
+    {
+      "atMs": 2966.612625,
+      "status": 200,
+      "latencyMs": 7.275709000000006
+    },
+    {
+      "atMs": 3073.6211670000002,
+      "status": 200,
+      "latencyMs": 7.477999999999611
+    },
+    {
+      "atMs": 3181.572542,
+      "status": 200,
+      "latencyMs": 7.585833000000093
+    },
+    {
+      "atMs": 3289.891667,
+      "status": 200,
+      "latencyMs": 9.827125000000251
+    },
+    {
+      "atMs": 3401.131334,
+      "status": 200,
+      "latencyMs": 62.406540999999834
+    },
+    {
+      "atMs": 3564.1459170000003,
+      "status": 200,
+      "latencyMs": 40.92420799999991
+    },
+    {
+      "atMs": 3705.606292,
+      "status": 200,
+      "latencyMs": 112.51904200000035
+    },
+    {
+      "atMs": 3918.014917,
+      "status": 200,
+      "latencyMs": 17.688042000000223
+    },
+    {
+      "atMs": 4036.474834,
+      "status": 200,
+      "latencyMs": 11.3689159999999
+    },
+    {
+      "atMs": 4148.545416999999,
+      "status": 200,
+      "latencyMs": 9.466833000000406
+    },
+    {
+      "atMs": 4259.194458999999,
+      "status": 200,
+      "latencyMs": 42.74879099999998
+    },
+    {
+      "atMs": 4402.655041999999,
+      "status": 200,
+      "latencyMs": 51.29320800000005
+    },
+    {
+      "atMs": 4555.000542,
+      "status": 200,
+      "latencyMs": 64.30795799999942
+    },
+    {
+      "atMs": 4719.846167,
+      "status": 200,
+      "latencyMs": 9.15979199999947
+    },
+    {
+      "atMs": 4829.629959,
+      "status": 200,
+      "latencyMs": 37.9326659999997
+    },
+    {
+      "atMs": 4967.909584,
+      "status": 200,
+      "latencyMs": 19.54479099999935
+    },
+    {
+      "atMs": 5089.373541999999,
+      "status": 200,
+      "latencyMs": 50.637000000000626
+    },
+    {
+      "atMs": 5239.525334,
+      "status": 200,
+      "latencyMs": 15.90270799999962
+    },
+    {
+      "atMs": 5355.4845,
+      "status": 200,
+      "latencyMs": 62.42566700000043
+    },
+    {
+      "atMs": 5518.140084,
+      "status": 200,
+      "latencyMs": 21.550457999999708
+    },
+    {
+      "atMs": 5640.243208999999,
+      "status": 200,
+      "latencyMs": 46.58375000000069
+    },
+    {
+      "atMs": 5787.548041999999,
+      "status": 200,
+      "latencyMs": 125.83612499999981
+    },
+    {
+      "atMs": 6014.671542,
+      "status": 200,
+      "latencyMs": 162.76949999999943
+    },
+    {
+      "atMs": 6278.933042,
+      "status": 200,
+      "latencyMs": 297.69695799999954
+    },
+    {
+      "atMs": 6676.8727499999995,
+      "status": 200,
+      "latencyMs": 174.5771249999998
+    },
+    {
+      "atMs": 6951.898709,
+      "status": 200,
+      "latencyMs": 563.6597079999992
+    },
+    {
+      "atMs": 7616.909041999999,
+      "status": 200,
+      "latencyMs": 152.602167
+    },
+    {
+      "atMs": 7871.241999999999,
+      "status": 200,
+      "latencyMs": 163.9782920000007
+    },
+    {
+      "atMs": 8134.437709,
+      "status": 200,
+      "latencyMs": 173.9060410000002
+    },
+    {
+      "atMs": 8410.039375,
+      "status": 200,
+      "latencyMs": 60.622042000000874
+    },
+    {
+      "atMs": 8571.499375000001,
+      "status": 200,
+      "latencyMs": 234.21679199999926
+    },
+    {
+      "atMs": 8905.539667000001,
+      "status": 200,
+      "latencyMs": 235.08187499999985
+    },
+    {
+      "atMs": 9242.4295,
+      "status": 200,
+      "latencyMs": 244.37804200000028
+    },
+    {
+      "atMs": 9588.045,
+      "status": 200,
+      "latencyMs": 248.45929199999955
+    },
+    {
+      "atMs": 9937.929792,
+      "status": 200,
+      "latencyMs": 15.9078329999993
+    },
+    {
+      "atMs": 10054.4675,
+      "status": 200,
+      "latencyMs": 195.4757499999996
+    },
+    {
+      "atMs": 10351.184917,
+      "status": 200,
+      "latencyMs": 99.63116699999955
+    },
+    {
+      "atMs": 10552.134709,
+      "status": 200,
+      "latencyMs": 196.93412499999977
+    },
+    {
+      "atMs": 10850.103959,
+      "status": 200,
+      "latencyMs": 123.93204100000003
+    },
+    {
+      "atMs": 11075.385,
+      "status": 200,
+      "latencyMs": 38.64887500000077
+    },
+    {
+      "atMs": 11214.706375,
+      "status": 200,
+      "latencyMs": 38.48016700000153
+    },
+    {
+      "atMs": 11353.772834000001,
+      "status": 200,
+      "latencyMs": 95.4447909999999
+    },
+    {
+      "atMs": 11549.118792000001,
+      "status": 200,
+      "latencyMs": 90.96049999999923
+    },
+    {
+      "atMs": 11740.71975,
+      "status": 200,
+      "latencyMs": 27.864125000000058
+    },
+    {
+      "atMs": 11869.787667,
+      "status": 200,
+      "latencyMs": 77.69683299999997
+    },
+    {
+      "atMs": 12048.375334,
+      "status": 200,
+      "latencyMs": 22.586041000000478
+    },
+    {
+      "atMs": 12172.211167000001,
+      "status": 200,
+      "latencyMs": 18.87933299999895
+    },
+    {
+      "atMs": 12291.011209,
+      "status": 200,
+      "latencyMs": 28.359958000000915
+    },
+    {
+      "atMs": 12420.867042,
+      "status": 200,
+      "latencyMs": 23.93645800000013
+    },
+    {
+      "atMs": 12545.622875000001,
+      "status": 200,
+      "latencyMs": 52.858000000000175
+    },
+    {
+      "atMs": 12699.678084000001,
+      "status": 200,
+      "latencyMs": 92.7208329999994
+    },
+    {
+      "atMs": 12894.211500000001,
+      "status": 200,
+      "latencyMs": 14.915999999999258
+    },
+    {
+      "atMs": 13009.468459,
+      "status": 200,
+      "latencyMs": 91.31212500000038
+    },
+    {
+      "atMs": 13202.317792,
+      "status": 200,
+      "latencyMs": 9.07458300000144
+    },
+    {
+      "atMs": 13312.223834,
+      "status": 200,
+      "latencyMs": 21.00866599999972
+    },
+    {
+      "atMs": 13434.187125,
+      "status": 200,
+      "latencyMs": 26.469624999999724
+    },
+    {
+      "atMs": 13561.931,
+      "status": 200,
+      "latencyMs": 41.652916999999434
+    },
+    {
+      "atMs": 13705.024209000001,
+      "status": 200,
+      "latencyMs": 26.373749999998836
+    },
+    {
+      "atMs": 13833.247209000001,
+      "status": 200,
+      "latencyMs": 54.947415999999066
+    },
+    {
+      "atMs": 13988.734709,
+      "status": 200,
+      "latencyMs": 23.357500000000073
+    },
+    {
+      "atMs": 14124.877334,
+      "status": 200,
+      "latencyMs": 214.4602500000001
+    },
+    {
+      "atMs": 14440.910709,
+      "status": 200,
+      "latencyMs": 66.164041
+    },
+    {
+      "atMs": 14606.954417,
+      "status": 200,
+      "latencyMs": 25.500041999999667
+    },
+    {
+      "atMs": 14733.432167,
+      "status": 200,
+      "latencyMs": 62.61883300000045
+    },
+    {
+      "atMs": 14897.212625,
+      "status": 200,
+      "latencyMs": 22.41479199999958
+    },
+    {
+      "atMs": 15020.999959,
+      "status": 200,
+      "latencyMs": 50.851833000000624
+    },
+    {
+      "atMs": 15172.922167,
+      "status": 200,
+      "latencyMs": 41.52249999999913
+    },
+    {
+      "atMs": 15315.204,
+      "status": 200,
+      "latencyMs": 21.375542000001587
+    },
+    {
+      "atMs": 15437.4805,
+      "status": 200,
+      "latencyMs": 63.95587500000147
+    },
+    {
+      "atMs": 15602.677709000001,
+      "status": 200,
+      "latencyMs": 22.55554099999972
+    },
+    {
+      "atMs": 15725.622625,
+      "status": 200,
+      "latencyMs": 32.133584000001065
+    },
+    {
+      "atMs": 15858.401542000001,
+      "status": 200,
+      "latencyMs": 187.4902919999986
+    },
+    {
+      "atMs": 16147.002250000001,
+      "status": 200,
+      "latencyMs": 48.014124999999694
+    },
+    {
+      "atMs": 16296.033459,
+      "status": 200,
+      "latencyMs": 307.5490000000009
+    },
+    {
+      "atMs": 16704.534834000002,
+      "status": 200,
+      "latencyMs": 122.45037500000035
+    },
+    {
+      "atMs": 16927.384334000002,
+      "status": 200,
+      "latencyMs": 89.58312499999738
+    },
+    {
+      "atMs": 17117.980542,
+      "status": 200,
+      "latencyMs": 62.85633299999972
+    },
+    {
+      "atMs": 17281.427917,
+      "status": 200,
+      "latencyMs": 31.496416999998473
+    },
+    {
+      "atMs": 17413.293459,
+      "status": 200,
+      "latencyMs": 28.038958000001003
+    },
+    {
+      "atMs": 17542.7185,
+      "status": 200,
+      "latencyMs": 27.651084000000992
+    },
+    {
+      "atMs": 17670.991625,
+      "status": 200,
+      "latencyMs": 137.67575000000215
+    },
+    {
+      "atMs": 17909.409667,
+      "status": 200,
+      "latencyMs": 28.955582999999024
+    },
+    {
+      "atMs": 18039.525209,
+      "status": 200,
+      "latencyMs": 77.37237500000265
+    },
+    {
+      "atMs": 18217.347709,
+      "status": 200,
+      "latencyMs": 17.259249999999156
+    },
+    {
+      "atMs": 18336.230209,
+      "status": 200,
+      "latencyMs": 32.27216599999883
+    },
+    {
+      "atMs": 18469.770584,
+      "status": 200,
+      "latencyMs": 46.17870799999946
+    },
+    {
+      "atMs": 18616.309125,
+      "status": 200,
+      "latencyMs": 27.108625000000757
+    },
+    {
+      "atMs": 18745.248709,
+      "status": 200,
+      "latencyMs": 38.87879100000282
+    },
+    {
+      "atMs": 18884.704,
+      "status": 200,
+      "latencyMs": 82.06487500000003
+    },
+    {
+      "atMs": 19067.983292,
+      "status": 200,
+      "latencyMs": 21.619707999998354
+    },
+    {
+      "atMs": 19192.220792,
+      "status": 200,
+      "latencyMs": 25.906999999999243
+    },
+    {
+      "atMs": 19318.519334,
+      "status": 200,
+      "latencyMs": 47.68012499999895
+    },
+    {
+      "atMs": 19466.323417,
+      "status": 200,
+      "latencyMs": 228.14008300000205
+    },
+    {
+      "atMs": 19795.458417,
+      "status": 200,
+      "latencyMs": 279.08416699999725
+    }
+  ]
+}

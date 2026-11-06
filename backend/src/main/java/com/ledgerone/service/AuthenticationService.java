@@ -25,6 +25,7 @@ import java.security.SecureRandom;
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
 import java.util.Base64;
+import java.util.Locale;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.BadCredentialsException;
@@ -51,12 +52,13 @@ public class AuthenticationService {
 
     @Transactional
     public AuthDtos.AuthResponse register(AuthDtos.RegisterRequest request, String ipAddress) {
-        if (userRepository.existsByEmailIgnoreCase(request.email())) {
+        String email = request.email().trim().toLowerCase(Locale.ROOT);
+        if (userRepository.existsByEmailIgnoreCase(email)) {
             throw new ConflictException("An account already exists for this email");
         }
         Role userRole = roleRepository.findByName(RoleName.USER).orElseThrow(() -> new ResourceNotFoundException("USER role missing"));
         UserAccount user = new UserAccount();
-        user.setEmail(request.email().toLowerCase());
+        user.setEmail(email);
         user.setPasswordHash(passwordEncoder.encode(request.password()));
         user.setFullName(request.fullName());
         user.setAccountCashBalance(Money.ZERO);
@@ -101,6 +103,9 @@ public class AuthenticationService {
                 .orElseThrow(() -> new BadCredentialsException("Invalid refresh token"));
         if (!refreshToken.isUsable()) {
             throw new BadCredentialsException("Invalid refresh token");
+        }
+        if (refreshToken.getUser().isFrozen() || !refreshToken.getUser().isEnabled()) {
+            throw new BadCredentialsException("Account is unavailable");
         }
         refreshToken.setRevoked(true);
         return issueTokens(refreshToken.getUser());

@@ -1,0 +1,112 @@
+apiVersion: v1
+items:
+- apiVersion: autoscaling/v2
+  kind: HorizontalPodAutoscaler
+  metadata:
+    annotations:
+      kubectl.kubernetes.io/last-applied-configuration: |
+        {"apiVersion":"autoscaling/v2","kind":"HorizontalPodAutoscaler","metadata":{"annotations":{},"name":"ledgerone-api","namespace":"ledgerone-local"},"spec":{"maxReplicas":3,"metrics":[{"resource":{"name":"cpu","target":{"averageUtilization":65,"type":"Utilization"}},"type":"Resource"}],"minReplicas":1,"scaleTargetRef":{"apiVersion":"apps/v1","kind":"Deployment","name":"ledgerone-api"}}}
+    creationTimestamp: "2026-11-06T03:28:46Z"
+    name: ledgerone-api
+    namespace: ledgerone-local
+    resourceVersion: "2902"
+    uid: 1f783818-80bd-4b1d-a994-21aaadfe4bf4
+  spec:
+    maxReplicas: 3
+    metrics:
+    - resource:
+        name: cpu
+        target:
+          averageUtilization: 65
+          type: Utilization
+      type: Resource
+    minReplicas: 1
+    scaleTargetRef:
+      apiVersion: apps/v1
+      kind: Deployment
+      name: ledgerone-api
+  status:
+    conditions:
+    - lastTransitionTime: "2026-11-06T03:29:01Z"
+      message: recent recommendations were higher than current one, applying the highest
+        recent recommendation
+      reason: ScaleDownStabilized
+      status: "True"
+      type: AbleToScale
+    - lastTransitionTime: "2026-11-06T03:40:30Z"
+      message: the HPA was able to successfully calculate a replica count from cpu
+        resource utilization (percentage of request)
+      reason: ValidMetricFound
+      status: "True"
+      type: ScalingActive
+    - lastTransitionTime: "2026-11-06T03:40:30Z"
+      message: the desired replica count is more than the maximum replica count
+      reason: TooManyReplicas
+      status: "True"
+      type: ScalingLimited
+    currentMetrics:
+    - resource:
+        current:
+          averageUtilization: 44
+          averageValue: 111m
+        name: cpu
+      type: Resource
+    currentReplicas: 3
+    desiredReplicas: 3
+    lastScaleTime: "2026-11-06T03:35:00Z"
+- apiVersion: autoscaling/v2
+  kind: HorizontalPodAutoscaler
+  metadata:
+    annotations:
+      kubectl.kubernetes.io/last-applied-configuration: |
+        {"apiVersion":"autoscaling/v2","kind":"HorizontalPodAutoscaler","metadata":{"annotations":{},"name":"ledgerone-order-worker","namespace":"ledgerone-local"},"spec":{"maxReplicas":3,"metrics":[{"resource":{"name":"cpu","target":{"averageUtilization":65,"type":"Utilization"}},"type":"Resource"}],"minReplicas":1,"scaleTargetRef":{"apiVersion":"apps/v1","kind":"Deployment","name":"ledgerone-order-worker"}}}
+    creationTimestamp: "2026-11-06T03:28:46Z"
+    name: ledgerone-order-worker
+    namespace: ledgerone-local
+    resourceVersion: "2903"
+    uid: f1212e3d-9a84-4d48-9139-a49cff60de1c
+  spec:
+    maxReplicas: 3
+    metrics:
+    - resource:
+        name: cpu
+        target:
+          averageUtilization: 65
+          type: Utilization
+      type: Resource
+    minReplicas: 1
+    scaleTargetRef:
+      apiVersion: apps/v1
+      kind: Deployment
+      name: ledgerone-order-worker
+  status:
+    conditions:
+    - lastTransitionTime: "2026-11-06T03:29:01Z"
+      message: recommended size matches current size
+      reason: ReadyForNewScale
+      status: "True"
+      type: AbleToScale
+    - lastTransitionTime: "2026-11-06T03:40:30Z"
+      message: the HPA was able to successfully calculate a replica count from cpu
+        resource utilization (percentage of request)
+      reason: ValidMetricFound
+      status: "True"
+      type: ScalingActive
+    - lastTransitionTime: "2026-11-06T03:43:16Z"
+      message: the desired replica count is more than the maximum replica count
+      reason: TooManyReplicas
+      status: "True"
+      type: ScalingLimited
+    currentMetrics:
+    - resource:
+        current:
+          averageUtilization: 102
+          averageValue: 255m
+        name: cpu
+      type: Resource
+    currentReplicas: 3
+    desiredReplicas: 3
+    lastScaleTime: "2026-11-06T03:43:16Z"
+kind: List
+metadata:
+  resourceVersion: ""

@@ -1,0 +1,43 @@
+{
+  "run": "2d21682d-555e-42b5-b5e7-5bf816d18724",
+  "at": "2026-11-06T03:44:57.806Z",
+  "checks": [
+    {
+      "scenario": "worker stopped",
+      "result": "broker acknowledged; order not recorded yet",
+      "receipt": {
+        "clientOrderId": "recovery-2d21682d-555e-42b5-b5e7-5bf816d18724",
+        "requestId": "0ec6abb8-a5d6-3d4c-8cea-81d7cbf0bdda",
+        "partition": 0,
+        "offset": 23
+      }
+    },
+    {
+      "scenario": "worker recovery and duplicate Kafka replay",
+      "result": "one filled order, one ledger entry, one cash deduction",
+      "order": {
+        "id": "34cb5667-8034-4ef3-8257-e2cc0312507f",
+        "clientOrderId": "recovery-2d21682d-555e-42b5-b5e7-5bf816d18724",
+        "portfolioId": "0b09cc8e-6ef3-4285-9040-484c6122acbe",
+        "portfolioName": "Paper Trading Account",
+        "symbol": "AAPL",
+        "side": "BUY",
+        "type": "MARKET",
+        "status": "FILLED",
+        "quantity": 1,
+        "executionPrice": 214.32,
+        "fees": 1,
+        "createdAt": "2026-11-06T03:45:24.736728Z",
+        "filledAt": "2026-11-06T03:45:24.739828Z"
+      },
+      "remainingCash": 99784.68
+    },
+    {
+      "scenario": "malformed Kafka record",
+      "result": "dead-lettered without a trade",
+      "payload": "invalid-2d21682d-555e-42b5-b5e7-5bf816d18724"
+    }
+  ],
+  "consumerGroup": "\nGROUP                   TOPIC               PARTITION  CURRENT-OFFSET  LOG-END-OFFSET  LAG             CONSUMER-ID                                                             HOST            CLIENT-ID\nledgerone-order-workers ledgerone.orders.v1 0          27              27              0               consumer-ledgerone-order-workers-1-182cb66d-eadb-4f32-89fa-17221282e7b5 /10.244.0.20    consumer-ledgerone-order-workers-1\nledgerone-order-workers ledgerone.orders.v1 1          120             120             0               consumer-ledgerone-order-workers-1-182cb66d-eadb-4f32-89fa-17221282e7b5 /10.244.0.20    consumer-ledgerone-order-workers-1\nledgerone-order-workers ledgerone.orders.v1 2          30              30              0               consumer-ledgerone-order-workers-1-182cb66d-eadb-4f32-89fa-17221282e7b5 /10.244.0.20    consumer-ledgerone-order-workers-1\nledgerone-order-workers ledgerone.orders.v1 3          102             102             0               consumer-ledgerone-order-workers-1-68b84bf0-f384-486a-801a-76cc651b6df1 /10.244.0.19    consumer-ledgerone-order-workers-1\nledgerone-order-workers ledgerone.orders.v1 4          116             116             0               consumer-ledgerone-order-workers-1-68b84bf0-f384-486a-801a-76cc651b6df1 /10.244.0.19    consumer-ledgerone-order-workers-1\nledgerone-order-workers ledgerone.orders.v1 5          33              33              0               consumer-ledgerone-order-workers-1-68b84bf0-f384-486a-801a-76cc651b6df1 /10.244.0.19    consumer-ledgerone-order-workers-1",
+  "passed": true
+}

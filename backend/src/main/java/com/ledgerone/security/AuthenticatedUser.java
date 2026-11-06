@@ -17,6 +17,7 @@ public record AuthenticatedUser(
         String fullName,
         String password,
         AccountStatus status,
+        boolean enabled,
         Set<RoleName> roles,
         Collection<? extends GrantedAuthority> authorities)
         implements UserDetails {
@@ -32,6 +33,7 @@ public record AuthenticatedUser(
                 user.getFullName(),
                 user.getPasswordHash(),
                 user.getStatus(),
+                user.isEnabled(),
                 roleNames,
                 authorities);
     }
@@ -68,6 +70,6 @@ public record AuthenticatedUser(
 
     @Override
     public boolean isEnabled() {
-        return true;
+        return enabled;
     }
 }

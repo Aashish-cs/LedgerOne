@@ -1,0 +1,7 @@
+{
+  "at": "2026-11-06T03:58:20.742Z",
+  "checks": [],
+  "errors": [],
+  "passed": false,
+  "error": "Error: page.goto: net::ERR_EMPTY_RESPONSE at http://127.0.0.1:18090/login\nCall log:\n\u001b[2m  - navigating to \"http://127.0.0.1:18090/login\", waiting until \"load\"\u001b[22m\n"
+}

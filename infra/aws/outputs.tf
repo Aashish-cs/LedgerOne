@@ -1,0 +1,13 @@
+output "region" { value = module.ledgerone.region }
+output "aws_account_id" { value = module.ledgerone.aws_account_id }
+output "cluster_name" { value = module.ledgerone.cluster_name }
+output "namespace" { value = module.ledgerone.namespace }
+output "database_host" { value = module.ledgerone.database_host }
+output "database_name" { value = module.ledgerone.database_name }
+output "database_master_secret_arn" { value = module.ledgerone.database_master_secret_arn }
+output "ecr_repository_urls" { value = module.ledgerone.ecr_repository_urls }
+output "kafka_bootstrap_servers" { value = module.ledgerone.kafka_bootstrap_servers }
+output "kafka_order_topic" { value = module.ledgerone.kafka_order_topic }
+output "kafka_order_group" { value = module.ledgerone.kafka_order_group }
+output "api_role_arn" { value = module.ledgerone.api_role_arn }
+output "worker_role_arn" { value = module.ledgerone.worker_role_arn }

@@ -70,15 +70,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         setUser(auth.user)
       },
       register: async (email, password, fullName) => {
-        let auth: AuthResponse
-        try {
-          auth = await api.register(email, password, fullName)
-        } catch (error) {
-          if (!isApiNetworkError(error)) {
-            throw new Error(getApiErrorMessage(error, 'Create account failed'))
-          }
-          auth = { ...demoAuth, user: { ...demoAuth.user, email, fullName, roles: ['USER'] } }
-        }
+        const auth = await api.register(email, password, fullName)
         persistAuthSession(auth)
         setUser(auth.user)
       },

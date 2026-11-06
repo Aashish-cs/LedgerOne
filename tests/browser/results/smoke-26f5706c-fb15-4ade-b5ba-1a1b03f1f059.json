@@ -1,0 +1,12 @@
+{
+  "at": "2026-11-06T03:59:32.561Z",
+  "checks": [
+    "UI registration creates one $100K paper account",
+    "Queued UI buy fills and refreshes visible buying power/holdings",
+    "UI sell restores cash less two $1 fees and leaves zero shares",
+    "Watchlist add and remove persist through real API"
+  ],
+  "errors": [],
+  "passed": false,
+  "error": "AssertionError [ERR_ASSERTION]: Page must not overflow the mobile viewport\n\ntrue !== false\n"
+}

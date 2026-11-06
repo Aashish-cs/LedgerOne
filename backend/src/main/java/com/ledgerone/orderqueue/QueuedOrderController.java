@@ -13,6 +13,8 @@ import jakarta.validation.Valid;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
+import java.util.UUID;
+import java.nio.charset.StandardCharsets;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Profile;
@@ -51,8 +53,10 @@ class QueuedOrderController {
         portfolios.getOwnedPortfolio(user, order.portfolioId());
         String message = json.writeValueAsString(new QueuedOrder(user.getId(), order));
         try {
-            kafka.send(topic, user.getId().toString(), message).get(7, TimeUnit.SECONDS);
-            return ResponseEntity.accepted().body(ApiResponse.ok("Order queued", new Receipt(order.clientOrderId())));
+            var published = kafka.send(topic, user.getId().toString(), message).get(7, TimeUnit.SECONDS).getRecordMetadata();
+            UUID requestId = UUID.nameUUIDFromBytes((user.getId() + ":" + order.clientOrderId()).getBytes(StandardCharsets.UTF_8));
+            return ResponseEntity.accepted().body(ApiResponse.ok("Order queued",
+                    new Receipt(order.clientOrderId(), requestId, published.partition(), published.offset())));
         } catch (InterruptedException exception) {
             Thread.currentThread().interrupt();
             return unavailable();
@@ -71,5 +75,5 @@ class QueuedOrderController {
                 .body(ApiResponse.error("Queue acknowledgement unavailable. Retry with the same clientOrderId.", null));
     }
 
-    record Receipt(String clientOrderId) {}
+    record Receipt(String clientOrderId, UUID requestId, int partition, long offset) {}
 }

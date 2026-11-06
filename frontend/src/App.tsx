@@ -146,44 +146,6 @@ function classNames(...values: Array<string | false | undefined>) {
   return values.filter(Boolean).join(' ')
 }
 
-function useClock(intervalMs = 1000) {
-  const [now, setNow] = useState(() => new Date())
-
-  useEffect(() => {
-    const timer = window.setInterval(() => setNow(new Date()), intervalMs)
-    return () => window.clearInterval(timer)
-  }, [intervalMs])
-
-  return now
-}
-
-function buildLivePerformance(points: PerformancePoint[], currentValue: number, now: Date) {
-  const realValue = currentValue > 0 ? currentValue : (points.at(-1)?.value ?? 100_000)
-  const nowMs = now.getTime()
-  const parsed = points
-    .map((point) => ({ timestamp: point.timestamp, value: Number(point.value), ms: new Date(point.timestamp).getTime() }))
-    .filter((point) => Number.isFinite(point.value) && Number.isFinite(point.ms))
-    .sort((a, b) => a.ms - b.ms)
-  const recent = parsed.filter((point) => nowMs - point.ms <= 2 * 60 * 1000).slice(-24)
-
-  if (recent.length >= 6) {
-    const currentPoint = { timestamp: now.toISOString(), value: realValue }
-    const latest = recent.at(-1)
-    return latest && nowMs - latest.ms < 1000 ? recent.map(({ timestamp, value }) => ({ timestamp, value })) : [...recent.map(({ timestamp, value }) => ({ timestamp, value })), currentPoint]
-  }
-
-  const seconds = nowMs / 1000
-  return Array.from({ length: 36 }, (_, index) => {
-    const age = 35 - index
-    const wave =
-      Math.sin(seconds / 2.4 + index * 0.8) * realValue * 0.0009 +
-      Math.sin(seconds / 5.7 + index * 0.35) * realValue * 0.00035
-    return {
-      timestamp: new Date(nowMs - age * 1000).toISOString(),
-      value: Math.max(0, realValue + wave),
-    }
-  })
-}
 
 function demoOrderFromRequest(request: OrderRequest, stocks: Stock[], portfolioName: string): Order {
   const stock = stocks.find((item) => item.symbol === request.symbol) ?? demoStocks[0]
@@ -510,13 +472,19 @@ function Shell() {
 }
 
 function DashboardPage() {
-  const dashboardQuery = useQuery({ queryKey: ['dashboard'], queryFn: () => api.dashboard(), placeholderData: demoDashboard })
+  const { isDemoSession } = useAuth()
+  const dashboardQuery = useQuery({ queryKey: ['dashboard'], queryFn: () => api.dashboard(), enabled: !isDemoSession, refetchInterval: 15_000 })
   const dashboard = dashboardQuery.data ?? demoDashboard
-  const now = useClock(1000)
-  const livePerformance = useMemo(
-    () => buildLivePerformance(dashboard.performance, dashboard.portfolioValue || dashboard.cashBalance, now),
-    [dashboard.cashBalance, dashboard.performance, dashboard.portfolioValue, now],
-  )
+  const [observations, setObservations] = useState<PerformancePoint[]>([])
+  useEffect(() => {
+    if (!dashboardQuery.data) return
+    const point = dashboardQuery.data.performance.at(-1)
+    if (point) setObservations((current) => [...current.filter((item) => item.timestamp !== point.timestamp), point].slice(-120))
+  }, [dashboardQuery.data])
+  const livePerformance = isDemoSession ? demoDashboard.performance : observations
+  if (!isDemoSession && !dashboardQuery.data) {
+    return <Page title="Account Overview" eyebrow="Paper Trading"><p role="status">{dashboardQuery.isError ? 'Account data unavailable' : 'Loading account...'}</p></Page>
+  }
   return (
     <Page title="Account Overview" eyebrow={dashboard.portfolioName} action={<RiskBadge score={dashboard.riskScore} />}>
       <section className="grid gap-3 sm:grid-cols-2 xl:grid-cols-6">
@@ -525,7 +493,7 @@ function DashboardPage() {
         ))}
       </section>
       <section className="mt-4 grid gap-4 xl:grid-cols-[1.45fr_0.55fr]">
-        <Panel title="Live Account Performance" icon={TrendingUp}>
+        <Panel title="Account Value This Session" icon={TrendingUp}>
           <div className="h-80">
             <ResponsiveContainer width="100%" height="100%">
               <AreaChart data={livePerformance}>
@@ -718,7 +686,7 @@ function TradingPage() {
   const stocksQuery = useQuery({
     queryKey: ['stocks'],
     queryFn: api.stocks,
-    placeholderData: demoStocks,
+    placeholderData: isDemoSession ? demoStocks : undefined,
     refetchInterval: 60_000,
   })
   const portfolios = useMemo(() => {
@@ -733,7 +701,7 @@ function TradingPage() {
     placeholderData: isDemoSession ? pageOfOrders : undefined,
   })
   const stocks = useMemo(
-    () => (isDemoSession ? mergeStocks(demoStocks, stockChoices) : mergeStocks(demoStocks, stocksQuery.data ?? [], stockChoices)),
+    () => (isDemoSession ? mergeStocks(demoStocks, stockChoices) : mergeStocks(stocksQuery.data ?? [], stockChoices)),
     [isDemoSession, stockChoices, stocksQuery.data],
   )
   const marketStocks = marketResults ?? stocks
@@ -879,6 +847,7 @@ function TradingPage() {
       void queryClient.invalidateQueries({ queryKey: ['orders'] })
       void queryClient.invalidateQueries({ queryKey: ['dashboard'] })
       void queryClient.invalidateQueries({ queryKey: ['portfolios'] })
+      void queryClient.invalidateQueries({ queryKey: ['account-summary'] })
     },
     onError: (error) => setMessage(getApiErrorMessage(error, 'Order request failed. Confirm API/CORS or continue in demo mode.')),
   })
@@ -907,8 +876,8 @@ function TradingPage() {
   const symbolField = register('symbol', { required: true })
   return (
     <Page title="Trading" eyebrow={isDemoSession ? 'Demo paper trading' : 'Live paper trading'}>
-      <div className="grid gap-4 xl:grid-cols-[0.9fr_1.1fr]">
-        <div className="grid gap-4">
+      <div className="grid min-w-0 grid-cols-1 gap-4 xl:grid-cols-[0.9fr_1.1fr]">
+        <div className="grid min-w-0 gap-4">
           <MarketBrowser
             stocks={marketStocks}
             selectedSymbol={symbol}
@@ -1173,7 +1142,7 @@ function WatchlistPage() {
                 <span className="mt-3 inline-flex rounded bg-emerald-400/10 px-2 py-1 text-xs text-emerald-200">{item.stock.sector}</span>
                 <div className="mt-4 flex items-end justify-between">
                   <p className="text-2xl font-semibold text-white">{currency(item.stock.lastPrice)}</p>
-                  <MiniTrend />
+                  <span className="text-xs text-slate-400">{formatDate(item.stock.updatedAt)}</span>
                 </div>
               </div>
             ))}
@@ -1308,7 +1277,7 @@ function AdminPage() {
 
 function Page({ title, eyebrow, action, children }: { title: string; eyebrow: string; action?: React.ReactNode; children: React.ReactNode }) {
   return (
-    <div className="mx-auto max-w-[1500px]">
+    <div className="mx-auto min-w-0 w-full max-w-[1500px]">
       <div className="mb-5 flex flex-col justify-between gap-4 md:flex-row md:items-end">
         <div>
           <p className="text-sm font-medium uppercase tracking-[0.18em] text-emerald-300">{eyebrow}</p>
@@ -1333,7 +1302,7 @@ function Panel({
   children: React.ReactNode
 }) {
   return (
-    <section className="rounded border border-white/10 bg-[#171d23]">
+    <section className="min-w-0 rounded border border-white/10 bg-[#171d23]">
       <div className="flex min-h-14 items-center justify-between gap-3 border-b border-white/10 px-4 py-3">
         <h2 className="flex items-center gap-2 text-base font-semibold text-white">
           <Icon size={18} className="text-emerald-300" />
@@ -1341,7 +1310,7 @@ function Panel({
         </h2>
         {action}
       </div>
-      <div className="p-4">{children}</div>
+      <div className="min-w-0 p-4">{children}</div>
     </section>
   )
 }
@@ -1508,7 +1477,7 @@ function MarketBrowser({
                 <div className="grid gap-2 sm:flex sm:items-center sm:justify-end sm:gap-3">
                   <div className="sm:text-right">
                     <p className="font-semibold tabular-nums text-white">{currency(stock.lastPrice)}</p>
-                    <p className="text-xs text-emerald-300">Live quote</p>
+                    <p className="text-xs text-emerald-300">Latest quote</p>
                   </div>
                   <div className="grid grid-cols-2 gap-2 sm:flex sm:gap-2">
                     <button className="table-action w-full sm:w-auto" type="button" onClick={() => onBuy(stock)}>
@@ -1546,6 +1515,13 @@ function StockDetail({
   onBuy: (stock: Stock) => void
   onSell: (stock: Stock) => void
 }) {
+  const { isDemoSession } = useAuth()
+  const history = useQuery({
+    queryKey: ['stock-history', stock?.symbol],
+    queryFn: () => api.stockHistory(stock!.symbol),
+    enabled: Boolean(stock) && !isDemoSession,
+    refetchInterval: 30_000,
+  })
   if (!stock) {
     return (
       <Panel title="Stock" icon={TrendingUp}>
@@ -1553,10 +1529,8 @@ function StockDetail({
       </Panel>
     )
   }
-  const chartData = Array.from({ length: 18 }, (_, index) => ({
-    label: index,
-    value: stock.lastPrice * (0.975 + index * 0.0018 + (index % 3) * 0.002),
-  }))
+  const chartData = (history.data ?? []).map((point) => ({ label: point.observedAt, value: point.price }))
+  if (chartData.length === 0) chartData.push({ label: stock.updatedAt, value: stock.lastPrice })
   return (
     <Panel title="Stock" icon={TrendingUp}>
       <div className="grid gap-4">
@@ -1570,7 +1544,7 @@ function StockDetail({
           </div>
           <div className="sm:text-right">
             <p className="text-3xl font-semibold tabular-nums text-white">{currency(stock.lastPrice)}</p>
-            <p className="mt-1 text-sm text-emerald-300">Live market price</p>
+            <p className="mt-1 text-sm text-emerald-300">Latest quote</p>
           </div>
         </div>
         <div className="h-44 rounded border border-white/10 bg-[#11161b] p-3">
@@ -1710,10 +1684,10 @@ function ApiModeBadge({ online, compact, className }: { online: boolean; compact
           : 'border-amber-400/30 bg-amber-500/10 text-amber-200',
         className,
       )}
-      title={online ? 'Connected to the self-hosted LedgerOne API' : 'Backend API is offline; demo fallback data is active'}
+      title={online ? 'Connected to the LedgerOne API' : 'Backend API is unavailable'}
     >
       {online ? <CheckCircleIcon /> : <DemoModeIcon />}
-      {online ? (compact ? 'Live API' : 'Live self-hosted API') : compact ? 'Demo Mode' : 'Demo mode, no paid API required'}
+      {online ? (compact ? 'Live API' : 'Connected to LedgerOne API') : 'API offline'}
     </div>
   )
 }
@@ -1742,19 +1716,6 @@ function ChartTooltip({ active, payload, label }: { active?: boolean; payload?: 
     <div className="rounded border border-white/10 bg-[#11161b] px-3 py-2 shadow-xl">
       <p className="text-xs text-slate-400">{formatDateTime(label)}</p>
       <p className="text-sm font-semibold text-white">{currency(payload[0].value)}</p>
-    </div>
-  )
-}
-
-function MiniTrend() {
-  const data = useMemo(() => Array.from({ length: 8 }, (_, index) => ({ index, value: 40 + Math.sin(index) * 6 + index * 2 })), [])
-  return (
-    <div className="h-12 w-24">
-      <ResponsiveContainer width="100%" height="100%">
-        <LineChart data={data}>
-          <Line dataKey="value" stroke="#47c7a1" strokeWidth={2} dot={false} />
-        </LineChart>
-      </ResponsiveContainer>
     </div>
   )
 }

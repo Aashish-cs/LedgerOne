@@ -1,0 +1,26 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: ledgerone-local
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: ledgerone-config
+data:
+  DATABASE_JDBC_URL: jdbc:postgresql://db:5432/ledgerone
+  DATABASE_USERNAME: ledgerone
+  KAFKA_BOOTSTRAP_SERVERS: kafka:9092
+  MARKET_LIVE_PRICES_ENABLED: "false"
+  ALLOWED_ORIGINS: http://127.0.0.1:18090,http://localhost:18090
+  JAVA_TOOL_OPTIONS: -Xms64m -Xmx256m
+---
+# Disposable local-cluster values only. Never use these credentials for a public deployment.
+apiVersion: v1
+kind: Secret
+metadata:
+  name: ledgerone-secrets
+type: Opaque
+stringData:
+  DATABASE_PASSWORD: ledgerone-local-only
+  JWT_SECRET: local-kind-only-secret-longer-than-thirty-two-bytes

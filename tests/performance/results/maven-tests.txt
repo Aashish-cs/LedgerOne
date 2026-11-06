@@ -1,0 +1,168 @@
+[INFO] Scanning for projects...
+[INFO] 
+[INFO] ----------------------< com.ledgerone:ledgerone >-----------------------
+[INFO] Building LedgerOne 0.0.1-SNAPSHOT
+[INFO]   from pom.xml
+[INFO] --------------------------------[ jar ]---------------------------------
+[INFO] 
+[INFO] --- resources:3.3.1:resources (default-resources) @ ledgerone ---
+[INFO] Copying 2 resources from src/main/resources to target/classes
+[INFO] Copying 8 resources from src/main/resources to target/classes
+[INFO] 
+[INFO] --- compiler:3.14.1:compile (default-compile) @ ledgerone ---
+[INFO] Recompiling the module because of changed source code.
+[INFO] Compiling 107 source files with javac [debug parameters release 21] to target/classes
+[INFO] 
+[INFO] --- resources:3.3.1:testResources (default-testResources) @ ledgerone ---
+[INFO] skip non existing resourceDirectory /Users/ashishmishra/Documents/Codex/2026-06-27/files-mentioned-by-the-user-ledgerone/outputs/LedgerOne/backend/src/test/resources
+[INFO] 
+[INFO] --- compiler:3.14.1:testCompile (default-testCompile) @ ledgerone ---
+[INFO] Recompiling the module because of changed dependency.
+[INFO] Compiling 12 source files with javac [debug parameters release 21] to target/test-classes
+[INFO] 
+[INFO] --- surefire:3.5.6:test (default-test) @ ledgerone ---
+[INFO] Using auto detected provider org.apache.maven.surefire.junitplatform.JUnitPlatformProvider
+[INFO] 
+[INFO] -------------------------------------------------------
+[INFO]  T E S T S
+[INFO] -------------------------------------------------------
+[INFO] Running com.ledgerone.LedgerOneApplicationTests
+[INFO] Tests run: 1, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.065 s -- in com.ledgerone.LedgerOneApplicationTests
+[INFO] Running com.ledgerone.config.RenderDatabaseUrlEnvironmentPostProcessorTest
+[INFO] Tests run: 1, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.159 s -- in com.ledgerone.config.RenderDatabaseUrlEnvironmentPostProcessorTest
+[INFO] Running com.ledgerone.security.JwtServiceTest
+[INFO] Tests run: 1, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.245 s -- in com.ledgerone.security.JwtServiceTest
+[INFO] Running com.ledgerone.orderqueue.QueuedOrderTest
+Mockito is currently self-attaching to enable the inline-mock-maker. This will no longer work in future releases of the JDK. Please add Mockito as an agent to your build as described in Mockito's documentation: https://javadoc.io/doc/org.mockito/mockito-core/latest/org.mockito/org/mockito/Mockito.html#0.3
+WARNING: A Java agent has been loaded dynamically (/Users/ashishmishra/.m2/repository/net/bytebuddy/byte-buddy-agent/1.17.8/byte-buddy-agent-1.17.8.jar)
+WARNING: If a serviceability tool is in use, please run with -XX:+EnableDynamicAgentLoading to hide this warning
+WARNING: If a serviceability tool is not in use, please run with -Djdk.instrument.traceUsage for more information
+WARNING: Dynamic loading of agents will be disallowed by default in a future release
+OpenJDK 64-Bit Server VM warning: Sharing is only supported for boot loader classes because bootstrap classpath has been appended
+21:51:12.218 [main] INFO org.hibernate.validator.internal.util.Version -- HV000001: Hibernate Validator 8.0.3.Final
+[INFO] Tests run: 6, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 1.199 s -- in com.ledgerone.orderqueue.QueuedOrderTest
+[INFO] Running com.ledgerone.service.TradingServiceTest
+[INFO] Tests run: 7, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.338 s -- in com.ledgerone.service.TradingServiceTest
+[INFO] Running com.ledgerone.service.PortfolioServiceTest
+[INFO] Tests run: 5, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.051 s -- in com.ledgerone.service.PortfolioServiceTest
+[INFO] Running com.ledgerone.service.RiskCalculatorTest
+[INFO] Tests run: 1, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.006 s -- in com.ledgerone.service.RiskCalculatorTest
+[INFO] Running com.ledgerone.service.StockQuoteServiceTest
+[INFO] Tests run: 4, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.308 s -- in com.ledgerone.service.StockQuoteServiceTest
+[INFO] Running com.ledgerone.validation.TickerSymbolValidatorTest
+[INFO] Tests run: 2, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.002 s -- in com.ledgerone.validation.TickerSymbolValidatorTest
+[INFO] 
+[INFO] Results:
+[INFO] 
+[INFO] Tests run: 28, Failures: 0, Errors: 0, Skipped: 0
+[INFO] 
+[INFO] 
+[INFO] --- jar:3.4.2:jar (default-jar) @ ledgerone ---
+[INFO] Building jar: /Users/ashishmishra/Documents/Codex/2026-06-27/files-mentioned-by-the-user-ledgerone/outputs/LedgerOne/backend/target/ledgerone-0.0.1-SNAPSHOT.jar
+[INFO] 
+[INFO] --- spring-boot:3.5.16:repackage (repackage) @ ledgerone ---
+[INFO] Replacing main artifact /Users/ashishmishra/Documents/Codex/2026-06-27/files-mentioned-by-the-user-ledgerone/outputs/LedgerOne/backend/target/ledgerone-0.0.1-SNAPSHOT.jar with repackaged archive, adding nested dependencies in BOOT-INF/.
+[INFO] The original artifact has been renamed to /Users/ashishmishra/Documents/Codex/2026-06-27/files-mentioned-by-the-user-ledgerone/outputs/LedgerOne/backend/target/ledgerone-0.0.1-SNAPSHOT.jar.original
+[INFO] 
+[INFO] --- failsafe:3.5.6:integration-test (default) @ ledgerone ---
+[INFO] Using auto detected provider org.apache.maven.surefire.junitplatform.JUnitPlatformProvider
+[INFO] 
+[INFO] -------------------------------------------------------
+[INFO]  T E S T S
+[INFO] -------------------------------------------------------
+[INFO] Running com.ledgerone.TradingPostgresIT
+21:51:16.209 [main] INFO org.testcontainers.images.PullPolicy -- Image pull policy will be performed by: DefaultPullPolicy()
+21:51:16.213 [main] INFO org.testcontainers.utility.ImageNameSubstitutor -- Image name substitution will be performed by: DefaultImageNameSubstitutor (composite of 'ConfigurationFileImageNameSubstitutor' and 'PrefixingImageNameSubstitutor')
+21:51:16.236 [main] INFO org.testcontainers.DockerClientFactory -- Testcontainers version: 1.21.4
+21:51:16.670 [main] INFO org.testcontainers.dockerclient.DockerClientProviderStrategy -- Found Docker environment with Environment variables, system properties and defaults. Resolved dockerHost=unix:///Users/ashishmishra/.colima/default/docker.sock
+21:51:16.671 [main] INFO org.testcontainers.DockerClientFactory -- Docker host IP address is localhost
+21:51:16.702 [main] INFO org.testcontainers.DockerClientFactory -- Connected to docker: 
+  Server Version: 29.5.2
+  API Version: 1.54
+  Operating System: Ubuntu 24.04.4 LTS
+  Total Memory: 5910 MB
+21:51:17.282 [main] INFO tc.testcontainers/ryuk:0.12.0 -- Creating container for image: testcontainers/ryuk:0.12.0
+21:51:17.585 [main] INFO tc.testcontainers/ryuk:0.12.0 -- Container testcontainers/ryuk:0.12.0 is starting: db012472996ac9c50308c93ec1bbfe9752a126705afea468b4b9872562b758b8
+21:51:18.535 [main] INFO tc.testcontainers/ryuk:0.12.0 -- Container testcontainers/ryuk:0.12.0 started in PT1.252383S
+21:51:18.542 [main] INFO org.testcontainers.utility.RyukResourceReaper -- Ryuk started - will monitor and terminate Testcontainers containers on JVM exit
+21:51:18.542 [main] INFO org.testcontainers.DockerClientFactory -- Checking the system...
+21:51:18.542 [main] INFO org.testcontainers.DockerClientFactory -- ✔︎ Docker server version should be at least 1.6.0
+21:51:18.543 [main] INFO tc.postgres:16-alpine -- Creating container for image: postgres:16-alpine
+21:51:18.599 [main] INFO tc.postgres:16-alpine -- Container postgres:16-alpine is starting: f9fbf71f1a3b2566e49b66370c0620ff3f6757a865bbfa7f99fc022249eb7ff3
+21:51:20.393 [main] INFO tc.postgres:16-alpine -- Container postgres:16-alpine started in PT1.850122S
+21:51:20.399 [main] INFO tc.postgres:16-alpine -- Container is started (JDBC URL: jdbc:postgresql://localhost:32769/test?loggerLevel=OFF)
+21:51:20.462 [main] INFO org.springframework.test.context.support.AnnotationConfigContextLoaderUtils -- Could not detect default configuration classes for test class [com.ledgerone.TradingPostgresIT]: TradingPostgresIT does not declare any static, non-private, non-final, nested classes annotated with @Configuration.
+21:51:20.555 [main] INFO org.springframework.boot.test.context.SpringBootTestContextBootstrapper -- Found @SpringBootConfiguration com.ledgerone.LedgerOneApplication for test class com.ledgerone.TradingPostgresIT
+
+  .   ____          _            __ _ _
+ /\\ / ___'_ __ _ _(_)_ __  __ _ \ \ \ \
+( ( )\___ | '_ | '_| | '_ \/ _` | \ \ \ \
+ \\/  ___)| |_)| | | | | || (_| |  ) ) ) )
+  '  |____| .__|_| |_|_| |_\__, | / / / /
+ =========|_|==============|___/=/_/_/_/
+
+ :: Spring Boot ::               (v3.5.16)
+
+2026-11-05T21:51:20.904-06:00  INFO 10091 --- [LedgerOne] [           main] com.ledgerone.TradingPostgresIT          : Starting TradingPostgresIT using Java 21.0.5 with PID 10091 (started by ashishmishra in /Users/ashishmishra/Documents/Codex/2026-06-27/files-mentioned-by-the-user-ledgerone/outputs/LedgerOne/backend)
+2026-11-05T21:51:20.905-06:00  INFO 10091 --- [LedgerOne] [           main] com.ledgerone.TradingPostgresIT          : No active profile set, falling back to 1 default profile: "default"
+2026-11-05T21:51:21.710-06:00  INFO 10091 --- [LedgerOne] [           main] .s.d.r.c.RepositoryConfigurationDelegate : Bootstrapping Spring Data JPA repositories in DEFAULT mode.
+2026-11-05T21:51:21.766-06:00  INFO 10091 --- [LedgerOne] [           main] .s.d.r.c.RepositoryConfigurationDelegate : Finished Spring Data repository scanning in 50 ms. Found 13 JPA repository interfaces.
+Mockito is currently self-attaching to enable the inline-mock-maker. This will no longer work in future releases of the JDK. Please add Mockito as an agent to your build as described in Mockito's documentation: https://javadoc.io/doc/org.mockito/mockito-core/latest/org.mockito/org/mockito/Mockito.html#0.3
+OpenJDK 64-Bit Server VM warning: Sharing is only supported for boot loader classes because bootstrap classpath has been appended
+WARNING: A Java agent has been loaded dynamically (/Users/ashishmishra/.m2/repository/net/bytebuddy/byte-buddy-agent/1.17.8/byte-buddy-agent-1.17.8.jar)
+WARNING: If a serviceability tool is in use, please run with -XX:+EnableDynamicAgentLoading to hide this warning
+WARNING: If a serviceability tool is not in use, please run with -Djdk.instrument.traceUsage for more information
+WARNING: Dynamic loading of agents will be disallowed by default in a future release
+2026-11-05T21:51:22.611-06:00  INFO 10091 --- [LedgerOne] [           main] com.zaxxer.hikari.HikariDataSource       : HikariPool-1 - Starting...
+2026-11-05T21:51:22.751-06:00  INFO 10091 --- [LedgerOne] [           main] com.zaxxer.hikari.pool.HikariPool        : HikariPool-1 - Added connection org.postgresql.jdbc.PgConnection@2318651f
+2026-11-05T21:51:22.751-06:00  INFO 10091 --- [LedgerOne] [           main] com.zaxxer.hikari.HikariDataSource       : HikariPool-1 - Start completed.
+2026-11-05T21:51:22.766-06:00  INFO 10091 --- [LedgerOne] [           main] org.flywaydb.core.FlywayExecutor         : Database: jdbc:postgresql://localhost:32769/test?loggerLevel=OFF (PostgreSQL 16.15)
+2026-11-05T21:51:22.816-06:00  INFO 10091 --- [LedgerOne] [           main] o.f.c.i.s.JdbcTableSchemaHistory         : Schema history table "public"."flyway_schema_history" does not exist yet
+2026-11-05T21:51:22.819-06:00  INFO 10091 --- [LedgerOne] [           main] o.f.core.internal.command.DbValidate     : Successfully validated 6 migrations (execution time 00:00.030s)
+2026-11-05T21:51:22.839-06:00  INFO 10091 --- [LedgerOne] [           main] o.f.c.i.s.JdbcTableSchemaHistory         : Creating Schema History table "public"."flyway_schema_history" ...
+2026-11-05T21:51:22.909-06:00  INFO 10091 --- [LedgerOne] [           main] o.f.core.internal.command.DbMigrate      : Current version of schema "public": << Empty Schema >>
+2026-11-05T21:51:22.926-06:00  INFO 10091 --- [LedgerOne] [           main] o.f.core.internal.command.DbMigrate      : Migrating schema "public" to version "1 - init ledgerone schema"
+2026-11-05T21:51:23.020-06:00  INFO 10091 --- [LedgerOne] [           main] o.f.core.internal.command.DbMigrate      : Migrating schema "public" to version "2 - ensure refresh tokens"
+2026-11-05T21:51:23.034-06:00  INFO 10091 --- [LedgerOne] [           main] o.f.core.internal.command.DbMigrate      : Migrating schema "public" to version "3 - paper account cash controls"
+2026-11-05T21:51:23.052-06:00  INFO 10091 --- [LedgerOne] [           main] o.f.core.internal.command.DbMigrate      : Migrating schema "public" to version "4 - single paper trading account"
+2026-11-05T21:51:23.080-06:00  INFO 10091 --- [LedgerOne] [           main] o.f.core.internal.command.DbMigrate      : Migrating schema "public" to version "5 - reset seed demo paper account"
+2026-11-05T21:51:23.096-06:00  INFO 10091 --- [LedgerOne] [           main] o.f.core.internal.command.DbMigrate      : Migrating schema "public" to version "6 - trade integrity and history indexes"
+2026-11-05T21:51:23.109-06:00  INFO 10091 --- [LedgerOne] [           main] o.f.core.internal.command.DbMigrate      : Successfully applied 6 migrations to schema "public", now at version v6 (execution time 00:00.124s)
+2026-11-05T21:51:23.193-06:00  INFO 10091 --- [LedgerOne] [           main] o.hibernate.jpa.internal.util.LogHelper  : HHH000204: Processing PersistenceUnitInfo [name: default]
+2026-11-05T21:51:23.227-06:00  INFO 10091 --- [LedgerOne] [           main] org.hibernate.Version                    : HHH000412: Hibernate ORM core version 6.6.53.Final
+2026-11-05T21:51:23.247-06:00  INFO 10091 --- [LedgerOne] [           main] o.h.c.internal.RegionFactoryInitiator    : HHH000026: Second-level cache disabled
+2026-11-05T21:51:23.314-06:00  INFO 10091 --- [LedgerOne] [           main] o.s.o.j.p.SpringPersistenceUnitInfo      : No LoadTimeWeaver setup: ignoring JPA class transformer
+2026-11-05T21:51:23.393-06:00  INFO 10091 --- [LedgerOne] [           main] org.hibernate.orm.connections.pooling    : HHH10001005: Database info:
+	Database JDBC URL [Connecting through datasource 'HikariDataSource (HikariPool-1)']
+	Database driver: undefined/unknown
+	Database version: 16.15
+	Autocommit mode: undefined/unknown
+	Isolation level: undefined/unknown
+	Minimum pool size: undefined/unknown
+	Maximum pool size: undefined/unknown
+2026-11-05T21:51:24.340-06:00  INFO 10091 --- [LedgerOne] [           main] o.h.e.t.j.p.i.JtaPlatformInitiator       : HHH000489: No JTA platform available (set 'hibernate.transaction.jta.platform' to enable JTA platform integration)
+2026-11-05T21:51:24.395-06:00  INFO 10091 --- [LedgerOne] [           main] j.LocalContainerEntityManagerFactoryBean : Initialized JPA EntityManagerFactory for persistence unit 'default'
+2026-11-05T21:51:24.695-06:00  INFO 10091 --- [LedgerOne] [           main] o.s.d.j.r.query.QueryEnhancerFactory     : Hibernate is in classpath; If applicable, HQL parser will be used.
+2026-11-05T21:51:25.526-06:00  INFO 10091 --- [LedgerOne] [           main] eAuthenticationProviderManagerConfigurer : Global AuthenticationManager configured with AuthenticationProvider bean with name authenticationProvider
+2026-11-05T21:51:25.527-06:00  WARN 10091 --- [LedgerOne] [           main] r$InitializeUserDetailsManagerConfigurer : Global AuthenticationManager configured with an AuthenticationProvider bean. UserDetailsService beans will not be used by Spring Security for automatically configuring username/password login. Consider removing the AuthenticationProvider bean. Alternatively, consider using the UserDetailsService in a manually instantiated DaoAuthenticationProvider. If the current configuration is intentional, to turn off this warning, increase the logging level of 'org.springframework.security.config.annotation.authentication.configuration.InitializeUserDetailsBeanManagerConfigurer' to ERROR
+2026-11-05T21:51:26.022-06:00  INFO 10091 --- [LedgerOne] [           main] o.s.b.a.e.web.EndpointLinksResolver      : Exposing 1 endpoint beneath base path '/actuator'
+2026-11-05T21:51:26.345-06:00  INFO 10091 --- [LedgerOne] [           main] o.s.b.t.m.w.SpringBootMockServletContext : Initializing Spring TestDispatcherServlet ''
+2026-11-05T21:51:26.345-06:00  INFO 10091 --- [LedgerOne] [           main] o.s.t.web.servlet.TestDispatcherServlet  : Initializing Servlet ''
+2026-11-05T21:51:26.345-06:00  INFO 10091 --- [LedgerOne] [           main] o.s.t.web.servlet.TestDispatcherServlet  : Completed initialization in 0 ms
+2026-11-05T21:51:26.394-06:00  INFO 10091 --- [LedgerOne] [           main] com.ledgerone.TradingPostgresIT          : Started TradingPostgresIT in 5.782 seconds (process running for 10.696)
+2026-11-05T21:51:26.442-06:00  WARN 10091 --- [LedgerOne] [           main] o.s.core.events.SpringDocAppInitializer  : SpringDoc /v3/api-docs endpoint is enabled by default. To disable it in production, set the property 'springdoc.api-docs.enabled=false'
+2026-11-05T21:51:26.442-06:00  WARN 10091 --- [LedgerOne] [           main] o.s.core.events.SpringDocAppInitializer  : SpringDoc /swagger-ui.html endpoint is enabled by default. To disable it in production, set the property 'springdoc.swagger-ui.enabled=false'
+[INFO] Tests run: 11, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 16.09 s -- in com.ledgerone.TradingPostgresIT
+[INFO] 
+[INFO] Results:
+[INFO] 
+[INFO] Tests run: 11, Failures: 0, Errors: 0, Skipped: 0
+[INFO] 
+[INFO] 
+[INFO] --- failsafe:3.5.6:verify (default) @ ledgerone ---
+[INFO] ------------------------------------------------------------------------
+[INFO] BUILD SUCCESS
+[INFO] ------------------------------------------------------------------------
+[INFO] Total time:  27.996 s
+[INFO] Finished at: 2026-11-05T21:51:33-06:00
+[INFO] ------------------------------------------------------------------------

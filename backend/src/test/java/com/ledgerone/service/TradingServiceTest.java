@@ -118,6 +118,9 @@ class TradingServiceTest {
         existing.setStock(stock);
         existing.setClientOrderId("duplicate-1");
         existing.setStatus(OrderStatus.FILLED);
+        existing.setSide(OrderSide.BUY);
+        existing.setType(OrderType.MARKET);
+        existing.setQuantity(BigDecimal.ONE);
         TradingDtos.OrderResponse expected = orderResponse(existing.getId(), "duplicate-1", OrderStatus.FILLED);
 
         when(orderRepository.findByUserAndClientOrderId(user, "duplicate-1")).thenReturn(Optional.of(existing));

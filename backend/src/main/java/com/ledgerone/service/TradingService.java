@@ -18,6 +18,7 @@ import com.ledgerone.entity.UserAccount;
 import com.ledgerone.exception.BadRequestException;
 import com.ledgerone.exception.ForbiddenOperationException;
 import com.ledgerone.exception.ResourceNotFoundException;
+import com.ledgerone.exception.ConflictException;
 import com.ledgerone.mapper.TradeOrderMapper;
 import com.ledgerone.mapper.TransactionMapper;
 import com.ledgerone.notification.NotificationService;
@@ -53,13 +54,24 @@ public class TradingService {
 
     @Transactional
     public TradingDtos.OrderResponse placeOrder(UUID userId, TradingDtos.OrderRequest request) {
+        validateRequest(request);
         UserAccount user = lockUser(userId);
-        if (user.isFrozen()) {
+        if (user.isFrozen() || !user.isEnabled()) {
             throw new ForbiddenOperationException("Frozen accounts cannot place orders");
         }
         return orderRepository
                 .findByUserAndClientOrderId(user, request.clientOrderId())
-                .map(tradeOrderMapper::toResponse)
+                .map(existing -> {
+                    if (!existing.getPortfolio().getId().equals(request.portfolioId())
+                            || !existing.getStock().getSymbol().equalsIgnoreCase(request.symbol().trim())
+                            || existing.getSide() != request.side() || existing.getType() != request.type()
+                            || existing.getQuantity().compareTo(request.quantity()) != 0
+                            || (existing.getLimitPrice() == null ? request.limitPrice() != null
+                                : request.limitPrice() == null || existing.getLimitPrice().compareTo(request.limitPrice()) != 0)) {
+                        throw new ConflictException("Client order ID already belongs to a different order");
+                    }
+                    return tradeOrderMapper.toResponse(existing);
+                })
                 .orElseGet(() -> tradeOrderMapper.toResponse(createOrder(user, request)));
     }
 
@@ -109,7 +121,7 @@ public class TradingService {
     public void fillPendingOrder(TradeOrderRepository.PendingOrder reference) {
         UserAccount user = lockUser(reference.getUserId());
         TradeOrder order = orderRepository.findById(reference.getId()).orElse(null);
-        if (user.isFrozen() || order == null || order.getStatus() != OrderStatus.PENDING
+        if (user.isFrozen() || !user.isEnabled() || order == null || order.getStatus() != OrderStatus.PENDING
                 || !order.getPortfolio().isActive()) {
             return;
         }
@@ -128,6 +140,19 @@ public class TradingService {
         // Serialize cash, holding, and order changes for this account across API and worker replicas.
         return userRepository.findByIdForUpdate(userId)
                 .orElseThrow(() -> new ResourceNotFoundException("Authenticated user not found"));
+    }
+
+    private void validateRequest(TradingDtos.OrderRequest request) {
+        if (request == null || request.portfolioId() == null || request.side() == null || request.type() == null
+                || request.symbol() == null || !request.symbol().trim().matches("(?i)[A-Z][A-Z0-9.-]{0,9}")
+                || request.clientOrderId() == null || request.clientOrderId().isBlank()
+                || request.clientOrderId().length() > 80 || request.quantity() == null
+                || request.quantity().signum() <= 0 || request.quantity().scale() > 6
+                || request.quantity().precision() - request.quantity().scale() > 13
+                || (request.limitPrice() != null && (request.limitPrice().signum() <= 0
+                    || request.limitPrice().scale() > 4 || request.limitPrice().precision() - request.limitPrice().scale() > 15))) {
+            throw new BadRequestException("Invalid order quantity, price, symbol, or client order ID");
+        }
     }
 
     private TradeOrder createOrder(UserAccount user, TradingDtos.OrderRequest request) {

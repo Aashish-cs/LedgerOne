@@ -1,0 +1,41 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+namespace: ledgerone-local
+resources:
+  - ../base
+  - dependencies.yaml
+  - frontend.yaml
+  - config.yaml
+images:
+  - name: ledgerone-backend
+    newName: ledgerone-audit
+    newTag: local
+  - name: ledgerone-frontend
+    newName: ledgerone-audit-frontend
+    newTag: local
+patches:
+  - target:
+      kind: Deployment
+      name: ledgerone-market-scheduler
+    patch: |-
+      apiVersion: apps/v1
+      kind: Deployment
+      metadata:
+        name: ledgerone-market-scheduler
+      spec:
+        template:
+          spec:
+            containers:
+              - name: ledgerone
+                env:
+                  - name: MARKET_SIMULATOR_ENABLED
+                    value: "false"
+  - target:
+      kind: HorizontalPodAutoscaler
+    patch: |-
+      - op: replace
+        path: /spec/minReplicas
+        value: 1
+      - op: replace
+        path: /spec/maxReplicas
+        value: 3

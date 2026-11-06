@@ -1,0 +1,25 @@
+# Optional reference only; not included in kustomization.yaml.
+# Requires AWS Load Balancer Controller, a validated ACM certificate, and public DNS.
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: ledgerone-public
+  namespace: ledgerone
+  annotations:
+    alb.ingress.kubernetes.io/scheme: internet-facing
+    alb.ingress.kubernetes.io/target-type: ip
+    alb.ingress.kubernetes.io/listen-ports: '[{"HTTPS":443}]'
+    alb.ingress.kubernetes.io/certificate-arn: REPLACE_WITH_VALIDATED_ACM_CERTIFICATE_ARN
+    alb.ingress.kubernetes.io/healthcheck-path: /
+spec:
+  ingressClassName: alb
+  rules:
+    - host: REPLACE_WITH_YOUR_DOMAIN
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: ledgerone-frontend
+                port: {number: 80}

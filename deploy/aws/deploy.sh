@@ -8,7 +8,7 @@ if [[ ${1:-} != --deploy || $# != 1 ]]; then
 fi
 
 root=$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)
-infra="$root/deploy/aws"
+infra="${TF_DIR:-$root/deploy/aws}"
 if [[ -n $(git -C "$root" status --porcelain) ]]; then
   printf '%s\n' 'Commit local changes before building immutable deployment images.' >&2
   exit 2
@@ -83,7 +83,7 @@ if [[ -z $(k get secret ledgerone-secrets --ignore-not-found -o name) ]]; then
     printf 'PGPASSWORD=%s\nAPP_PASSWORD=%s\n' "$(jq -er .password <<<"$credentials")" "$db_password"
   } | k create secret generic ledgerone-db-bootstrap --from-env-file=/dev/stdin
   unset credentials
-  k create -f "$infra/bootstrap-db.yaml"
+  k create -f "$root/deploy/aws/bootstrap-db.yaml"
   k wait --for=condition=complete job/ledgerone-db-bootstrap --timeout=130s
   {
     printf 'DATABASE_USERNAME=ledgerone_app\nDATABASE_PASSWORD=%s\n' "$db_password"

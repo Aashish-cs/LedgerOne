@@ -1,0 +1,86 @@
+apiVersion: v1
+items:
+- apiVersion: v1
+  count: 1
+  eventTime: null
+  firstTimestamp: "2026-11-06T03:35:00Z"
+  involvedObject:
+    apiVersion: autoscaling/v2
+    kind: HorizontalPodAutoscaler
+    name: ledgerone-api
+    namespace: ledgerone-local
+    resourceVersion: "1764"
+    uid: 1f783818-80bd-4b1d-a994-21aaadfe4bf4
+  kind: Event
+  lastTimestamp: "2026-11-06T03:35:00Z"
+  message: 'New size: 3; reason: cpu resource utilization (percentage of request)
+    above target'
+  metadata:
+    creationTimestamp: "2026-11-06T03:35:00Z"
+    name: ledgerone-api.18e55760ed3c428e
+    namespace: ledgerone-local
+    resourceVersion: "1879"
+    uid: 6dbab2ac-f851-4c4a-b1d6-6b0ed9ae24ca
+  reason: SuccessfulRescale
+  reportingComponent: horizontal-pod-autoscaler
+  reportingInstance: ""
+  source:
+    component: horizontal-pod-autoscaler
+  type: Normal
+- apiVersion: v1
+  count: 1
+  eventTime: null
+  firstTimestamp: "2026-11-06T03:40:30Z"
+  involvedObject:
+    apiVersion: autoscaling/v2
+    kind: HorizontalPodAutoscaler
+    name: ledgerone-order-worker
+    namespace: ledgerone-local
+    resourceVersion: "2288"
+    uid: f1212e3d-9a84-4d48-9139-a49cff60de1c
+  kind: Event
+  lastTimestamp: "2026-11-06T03:40:30Z"
+  message: 'New size: 2; reason: cpu resource utilization (percentage of request)
+    above target'
+  metadata:
+    creationTimestamp: "2026-11-06T03:40:30Z"
+    name: ledgerone-order-worker.18e557addf95532e
+    namespace: ledgerone-local
+    resourceVersion: "2423"
+    uid: e3a73a04-c0da-446e-a46d-8fc959d51356
+  reason: SuccessfulRescale
+  reportingComponent: horizontal-pod-autoscaler
+  reportingInstance: ""
+  source:
+    component: horizontal-pod-autoscaler
+  type: Normal
+- apiVersion: v1
+  count: 1
+  eventTime: null
+  firstTimestamp: "2026-11-06T03:43:16Z"
+  involvedObject:
+    apiVersion: autoscaling/v2
+    kind: HorizontalPodAutoscaler
+    name: ledgerone-order-worker
+    namespace: ledgerone-local
+    resourceVersion: "2655"
+    uid: f1212e3d-9a84-4d48-9139-a49cff60de1c
+  kind: Event
+  lastTimestamp: "2026-11-06T03:43:16Z"
+  message: 'New size: 3; reason: cpu resource utilization (percentage of request)
+    above target'
+  metadata:
+    creationTimestamp: "2026-11-06T03:43:16Z"
+    name: ledgerone-order-worker.18e557d482db6f0d
+    namespace: ledgerone-local
+    resourceVersion: "2677"
+    uid: e905eddc-e0d4-4826-8a09-de5298320422
+  reason: SuccessfulRescale
+  reportingComponent: horizontal-pod-autoscaler
+  reportingInstance: ""
+  source:
+    component: horizontal-pod-autoscaler
+  type: Normal
+kind: List
+metadata:
+  resourceVersion: ""

@@ -1,0 +1,9 @@
+{
+  "orders": 20,
+  "accounts": 4,
+  "requestsInFlightPerAccount": 8,
+  "acknowledgedPerSecond": 21.6,
+  "fillsObservedPerSecond": 5.4,
+  "p95AcknowledgementMs": 922.1,
+  "verified": "unique fills, correct cash and ledger, duplicate replay, pending limit, scoped lookup, concurrent buying-power check"
+}

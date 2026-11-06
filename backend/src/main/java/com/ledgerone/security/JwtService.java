@@ -52,9 +52,13 @@ public class JwtService {
             if (parts.length != 3 || !constantTimeEquals(sign(parts[0] + "." + parts[1]), parts[2])) {
                 return Optional.empty();
             }
+            Map<String, Object> header = objectMapper.readValue(DECODER.decode(parts[0]), new TypeReference<>() {});
             Map<String, Object> payload = objectMapper.readValue(DECODER.decode(parts[1]), new TypeReference<>() {});
+            if (!"HS256".equals(header.get("alg")) || !"ledgerone".equals(payload.get("iss"))) {
+                return Optional.empty();
+            }
             long expiresAt = Long.parseLong(payload.get("exp").toString());
-            if (Instant.ofEpochSecond(expiresAt).isBefore(Instant.now())) {
+            if (!Instant.ofEpochSecond(expiresAt).isAfter(Instant.now())) {
                 return Optional.empty();
             }
             @SuppressWarnings("unchecked")

@@ -1,0 +1,16 @@
+services:
+  db:
+    ports: !override []
+  backend:
+    image: ledgerone-audit:local
+    ports: !override ["127.0.0.1:18093:8080"]
+    environment:
+      ALLOWED_ORIGINS: http://127.0.0.1:18092,http://localhost:18092
+      JAVA_TOOL_OPTIONS: -Xms64m -Xmx256m
+  worker:
+    image: ledgerone-audit:local
+    environment:
+      JAVA_TOOL_OPTIONS: -Xms64m -Xmx256m
+  frontend:
+    image: ledgerone-audit-frontend:local
+    ports: !override ["127.0.0.1:18092:8080"]

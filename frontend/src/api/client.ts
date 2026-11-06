@@ -101,7 +101,7 @@ http.interceptors.response.use(
   async (error: AxiosError) => {
     const status = error.response?.status
     const originalRequest = error.config as RetryRequestConfig | undefined
-    const shouldRefresh = status === 401 || status === 403
+    const shouldRefresh = status === 401
 
     if (!shouldRefresh || !originalRequest || originalRequest._retry) {
       return Promise.reject(error)
@@ -186,6 +186,7 @@ export const api = {
   stocks: () => http.get<ApiResponse<Stock[]>>('/market/stocks').then(unwrap),
   searchStocks: (query: string) => http.get<ApiResponse<Stock[]>>('/market/stocks/search', { params: { query } }).then(unwrap),
   quoteStock: (symbol: string) => http.get<ApiResponse<Stock>>(`/market/stocks/${encodeURIComponent(symbol)}`).then(unwrap),
+  stockHistory: (symbol: string) => http.get<ApiResponse<Array<{ price: number; observedAt: string }>>>(`/market/stocks/${encodeURIComponent(symbol)}/history`).then(unwrap),
   orders: (portfolioId: string) =>
     http.get<ApiResponse<PageResponse<Order>>>(`/portfolios/${portfolioId}/orders`, { params: { size: 20 } }).then(unwrap),
   placeOrder,
