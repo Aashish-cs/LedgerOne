@@ -112,6 +112,9 @@ AWS wrapper init/validate passed; no plan/apply or cloud calls created resources
 - First updated CI passed backend/frontend/Kafka/config checks but failed image
   scans. Compatible dependency/OS fixes were added; conditional Spring MVC
   advisories remain tracked in SECURITY_REVIEW.md. Failure gates are not suppressed.
+  Follow-up run 42161406716 passed those four jobs again and the frontend scan;
+  backend findings dropped from 21 to two. Overall CI remains failed until the
+  framework findings are resolved; this is not a clean-security release.
 - EKS/MSK/RDS/IAM/TLS and ALB controller need real authorized cloud validation.
 - One broker/DB/Kind node, no long-term SLO, no node or consumer-lag autoscaling.
 - Queue DLT failures lack a durable public receipt/status; 404 is ambiguous.

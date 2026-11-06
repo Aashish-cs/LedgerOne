@@ -6,6 +6,8 @@ The November 5 audit run passed **28 unit tests and 11 PostgreSQL integration te
 39 total, 0 failures, 0 errors, 0 skipped. This exceeds the original 18-test resume
 claim; it does not mean every test is a distributed-system integration test.
 [Raw Maven log](../tests/performance/results/maven-tests.txt).
+The compatible security updates also passed the same 39 cases:
+[updated-dependency run](../tests/performance/results/maven-security-update.txt).
 
 ## Reproduce
 
@@ -108,6 +110,8 @@ retained in `tests/performance/results/container-scan.txt`. CI scans both images
 and fails on HIGH/CRITICAL findings. The first remote run passed four jobs but
 failed both image scans; compatible fixes were added afterward. See
 [security findings and remaining Spring upgrade work](SECURITY_REVIEW.md).
+The follow-up run passed all four functional/configuration jobs and the frontend
+image scan. Only two Spring MVC findings keep the backend image gate failed.
 
 Kustomize rendering, live Kind schema validation, Terraform init/validate, shell
 syntax checks, load/availability scripts, and browser evidence are described in the

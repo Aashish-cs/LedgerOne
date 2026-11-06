@@ -14,11 +14,24 @@ changed to passing just to make CI green.
 
 ## Compatible Remediation
 
+The follow-up [CI run for application revision 27988a8](https://github.com/Aashish-cs/LedgerOne/actions/runs/42161406716)
+completed after these changes. Backend tests, frontend build/lint/audit, Kafka/DB
+smoke and infrastructure validation all passed. The frontend image passed the
+HIGH/CRITICAL scan; the backend scan fell from 21 findings to **two Spring MVC
+findings** (CVE-2026-47884 and CVE-2026-47890). There were zero remaining backend OS
+findings at that threshold. The overall workflow remains **failed**, not green.
+[Actual job status](../tests/performance/results/ci-status.json) and
+[remaining scan output](../tests/performance/results/ci-container-scan-after-updates.txt).
+No exception was added to the gate. A clean-inventory release is still blocked.
+
 `backend/pom.xml` overrides the final Boot 3.5 dependency set with compatible
 security updates: Jackson BOM 2.21.8, Tomcat 10.1.61, HttpCore 5.4.3, PostgreSQL
 42.7.12, LZ4 1.11.4 and Snappy 1.1.10.9. Versions were checked against Maven Central
 and scanner fixed-version output. Full unit/PostgreSQL tests are rerun after the
 changes; Kafka behavior is also exercised by the independent CI smoke job.
+
+The patched dependency set passed 28 unit and 11 real PostgreSQL integration
+cases locally and in CI. [Latest local log](../tests/performance/results/maven-security-update.txt).
 
 The backend runtime runs an OS package upgrade while building the Temurin image;
 the Nginx runtime runs `apk upgrade --no-cache`. Both stay non-root at runtime.

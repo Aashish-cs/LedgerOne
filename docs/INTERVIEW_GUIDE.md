@@ -61,7 +61,11 @@ steady-state capacity. See `PERFORMANCE_REPORT.md`.
 
 "The frontend sends a client order ID. Under the user's row lock, the service looks
 up that user's ID. An exact retry returns the existing order; a different payload
-with that ID gets a conflict. A database unique key adds another guard."
+with that ID gets a service conflict. A database unique key adds another guard."
+
+For the synchronous API that is HTTP 409. Queue acceptance happens before worker
+validation, so queued conflicts go through retry/DLT and are not yet exposed as a
+durable public failure receipt. Do not promise immediate queued HTTP 409 behavior.
 
 ## 10. What happens if Kafka crashes?
 

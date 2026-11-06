@@ -27,7 +27,7 @@ verified deployment. Review the metric table before quoting resume numbers.
 - Market/limit buy/sell orders, fees, cancellation and recorded rejection reasons.
 - Cash/share checks repeated at limit execution; pending limits reserve nothing.
 - Atomic cash/holding/order/ledger writes under a per-user database row lock.
-- Exact client-order replay returns the original; conflicting payload receives 409.
+- Exact client-order replay returns the original; synchronous payload conflicts receive 409.
 - Watchlists, notifications, audit history, admin review and rule-based risk.
 - Optional Kafka order API, worker group, retries, DLT and recovery checks.
 - Account chart uses real session observations, not invented price motion.
@@ -99,6 +99,10 @@ flowchart LR
 
 Lookup returns 404 before the DB order exists. Durable public receipt/DLT-failure
 status is still missing; a queue timeout does not imply execution succeeded.
+Queued payload conflicts are detected by the worker, not returned as HTTP 409 by
+the publish step. A lookup can still show the original order for that client ID;
+clients must not reuse an ID for a different intent. Durable conflict receipts are
+part of the remaining queued-status work.
 
 ## Kafka Architecture
 
@@ -316,7 +320,7 @@ Current local audit build, using controlled seeded quotes and simulated trades:
 | Throughput / uptime / overall latency | Original targets remain unverified |
 | Security | Stronger state/refresh/input checks; localStorage tokens, demo accounts and no rate limits remain limitations |
 | Analytics | Rule-based risk, not a validated financial model; session equity observations, not historical NAV |
-| CI / images | Backend/frontend/Kafka/config jobs passed; first image scans failed. Compatible remediation and remaining Spring advisories are in the [security review](docs/SECURITY_REVIEW.md). |
+| CI / images | Backend/frontend/Kafka/config jobs and frontend image scan pass. Two Spring MVC findings still fail the backend security gate; see the [security review](docs/SECURITY_REVIEW.md). |
 
 Next: durable queued/DLT status, historical NAV snapshots, frontend extraction and
 tests, provider contracts, session hardening, lag-based scaling, longer isolated
