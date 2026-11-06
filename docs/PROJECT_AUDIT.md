@@ -109,7 +109,9 @@ AWS wrapper init/validate passed; no plan/apply or cloud calls created resources
   and Compose, with desktop/mobile screenshots and earlier failed runs retained.
 - Local full-image Trivy failed while downloading its DB with disk/I/O errors.
   npm audit is clean after compatible lockfile updates; that is not a Java/image scan.
-- Updated remote CI has not yet been certified. Failure conditions are not suppressed.
+- First updated CI passed backend/frontend/Kafka/config checks but failed image
+  scans. Compatible dependency/OS fixes were added; conditional Spring MVC
+  advisories remain tracked in SECURITY_REVIEW.md. Failure gates are not suppressed.
 - EKS/MSK/RDS/IAM/TLS and ALB controller need real authorized cloud validation.
 - One broker/DB/Kind node, no long-term SLO, no node or consumer-lag autoscaling.
 - Queue DLT failures lack a durable public receipt/status; 404 is ambiguous.

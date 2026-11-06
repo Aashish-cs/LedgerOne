@@ -8,6 +8,7 @@ RUN ./mvnw -q -DskipTests package
 
 FROM eclipse-temurin:21-jre
 WORKDIR /app
+RUN apt-get update && apt-get upgrade -y --no-install-recommends && rm -r /var/lib/apt/lists/*
 RUN addgroup --system ledgerone && adduser --system --ingroup ledgerone ledgerone
 COPY --from=build /workspace/target/*.jar app.jar
 USER ledgerone

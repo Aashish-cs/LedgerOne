@@ -105,7 +105,9 @@ Compatible lockfile updates removed the initially reported npm vulnerabilities;
 the local audit reported zero afterward. This is not a clean Java/container scan.
 The local Trivy database download failed with disk/I/O errors; its failure log is
 retained in `tests/performance/results/container-scan.txt`. CI scans both images
-and fails on HIGH/CRITICAL findings; a remote passing CI run is not yet established.
+and fails on HIGH/CRITICAL findings. The first remote run passed four jobs but
+failed both image scans; compatible fixes were added afterward. See
+[security findings and remaining Spring upgrade work](SECURITY_REVIEW.md).
 
 Kustomize rendering, live Kind schema validation, Terraform init/validate, shell
 syntax checks, load/availability scripts, and browser evidence are described in the

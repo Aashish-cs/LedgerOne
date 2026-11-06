@@ -302,7 +302,7 @@ function LoginPage() {
                 await new Promise((resolve) => window.setTimeout(resolve, 500))
                 navigate('/')
               } catch (exception) {
-                setError(exception instanceof Error ? exception.message : 'Authentication failed')
+                setError(getApiErrorMessage(exception, 'Authentication failed'))
               } finally {
                 setAuthInProgress(false)
               }

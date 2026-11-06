@@ -29,7 +29,26 @@
 	<properties>
 		<java.version>21</java.version>
 		<mapstruct.version>1.6.3</mapstruct.version>
+		<!-- Compatible security updates beyond the final Boot 3.5 dependency set. -->
+		<jackson-bom.version>2.21.8</jackson-bom.version>
+		<tomcat.version>10.1.61</tomcat.version>
+		<httpcore5.version>5.4.3</httpcore5.version>
+		<postgresql.version>42.7.12</postgresql.version>
 	</properties>
+	<dependencyManagement>
+		<dependencies>
+			<dependency>
+				<groupId>at.yawk.lz4</groupId>
+				<artifactId>lz4-java</artifactId>
+				<version>1.11.4</version>
+			</dependency>
+			<dependency>
+				<groupId>org.xerial.snappy</groupId>
+				<artifactId>snappy-java</artifactId>
+				<version>1.1.10.9</version>
+			</dependency>
+		</dependencies>
+	</dependencyManagement>
 	<dependencies>
 		<dependency>
 			<groupId>org.springframework.boot</groupId>

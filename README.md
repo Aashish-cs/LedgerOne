@@ -316,7 +316,7 @@ Current local audit build, using controlled seeded quotes and simulated trades:
 | Throughput / uptime / overall latency | Original targets remain unverified |
 | Security | Stronger state/refresh/input checks; localStorage tokens, demo accounts and no rate limits remain limitations |
 | Analytics | Rule-based risk, not a validated financial model; session equity observations, not historical NAV |
-| CI / images | Expanded checks; local full Trivy incomplete and remote workflow not yet certified |
+| CI / images | Backend/frontend/Kafka/config jobs passed; first image scans failed. Compatible remediation and remaining Spring advisories are in the [security review](docs/SECURITY_REVIEW.md). |
 
 Next: durable queued/DLT status, historical NAV snapshots, frontend extraction and
 tests, provider contracts, session hardening, lag-based scaling, longer isolated
