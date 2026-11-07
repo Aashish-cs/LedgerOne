@@ -7,7 +7,7 @@ services:
     autoDeployTrigger: commit
     dockerfilePath: ./backend/Dockerfile
     dockerContext: ./backend
-    healthCheckPath: /actuator/health
+    healthCheckPath: /readyz
     envVars:
       - key: DATABASE_URL
         fromDatabase:

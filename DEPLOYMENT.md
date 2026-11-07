@@ -28,10 +28,17 @@ https://YOUR-RENDER-SERVICE.onrender.com/api
 Useful backend URLs:
 
 ```text
-https://YOUR-RENDER-SERVICE.onrender.com/actuator/health
+https://YOUR-RENDER-SERVICE.onrender.com/readyz
+https://YOUR-RENDER-SERVICE.onrender.com/livez
 https://YOUR-RENDER-SERVICE.onrender.com/api/system/status
-https://YOUR-RENDER-SERVICE.onrender.com/swagger-ui.html
 ```
+
+This branch restricts all `/actuator/**`, Swagger UI and OpenAPI paths to ADMIN
+bearer-token requests. Render and Kubernetes use the minimal public `/readyz`
+and `/livez` probes instead; deploy the updated health-check configuration with
+the matching backend version. Existing `/api/auth` login/registration routes
+remain public POST endpoints. The security rules also cover the reserved v1
+namespaces; they do not create new versioned controllers.
 
 Set the Finnhub key in Render only:
 

@@ -41,17 +41,17 @@ spec:
               memory: 1Gi
           startupProbe:
             httpGet:
-              path: /actuator/health/liveness
+              path: /livez
               port: http
             periodSeconds: 5
             failureThreshold: 36
           readinessProbe:
             httpGet:
-              path: /actuator/health/readiness
+              path: /readyz
               port: http
           livenessProbe:
             httpGet:
-              path: /actuator/health/liveness
+              path: /livez
               port: http
 ---
 apiVersion: apps/v1
@@ -97,17 +97,17 @@ spec:
               memory: 1Gi
           startupProbe:
             httpGet:
-              path: /actuator/health/liveness
+              path: /livez
               port: http
             periodSeconds: 5
             failureThreshold: 36
           readinessProbe:
             httpGet:
-              path: /actuator/health/readiness
+              path: /readyz
               port: http
           livenessProbe:
             httpGet:
-              path: /actuator/health/liveness
+              path: /livez
               port: http
 ---
 apiVersion: apps/v1
@@ -156,17 +156,17 @@ spec:
               memory: 1Gi
           startupProbe:
             httpGet:
-              path: /actuator/health/liveness
+              path: /livez
               port: http
             periodSeconds: 5
             failureThreshold: 36
           readinessProbe:
             httpGet:
-              path: /actuator/health/readiness
+              path: /readyz
               port: http
           livenessProbe:
             httpGet:
-              path: /actuator/health/liveness
+              path: /livez
               port: http
 ---
 apiVersion: v1

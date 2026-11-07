@@ -47,7 +47,7 @@ Requires Docker Compose 2.24.4+ and Node.js 20+. Run from the repository root:
 
 ```bash
 docker compose -p ledgerone-queue -f docker-compose.yml -f docker-compose.queue.yml up -d --build --scale worker=2 backend worker
-curl --fail http://127.0.0.1:18080/actuator/health/readiness
+curl --fail http://127.0.0.1:18080/readyz
 node benchmarks/queued-orders.mjs
 ```
 

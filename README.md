@@ -150,7 +150,7 @@ Original numerical claims remain visible. Targets are not achievements.
 | 99.99% uptime | Recovered normal run: 131/131 status reads over 20 s; rollout: 94/97 over 20 s. No long-term uptime proof. | [Availability report](docs/AVAILABILITY_REPORT.md) | UNVERIFIED |
 | 14 PostgreSQL tables | 14 application tables plus Flyway metadata; clean V1-V6 integration test. | [Schema](docs/DATABASE_OPTIMIZATION.md), [test](backend/src/test/java/com/ledgerone/TradingPostgresIT.java) | VERIFIED |
 | 42% latency reduction | Portfolio-history median 16.284 -> 0.105 ms; insert batch 0.041 -> 0.277 ms. No overall read/write improvement established. | [Database optimization](docs/DATABASE_OPTIMIZATION.md) | UNVERIFIED |
-| 18 JUnit 5/Mockito tests | 28 passing unit + 11 real PostgreSQL integration cases; 39 total, 0 failed/skipped. Original count is outdated. | [Testing](docs/TESTING.md), [raw log](tests/performance/results/maven-tests.txt) | VERIFIED |
+| 18 JUnit 5/Mockito tests | 92 passing unit/web-slice + 14 PostgreSQL/server cases; 106 total including parameterized cases, 0 failed/skipped. Original count is outdated. | [Testing](docs/TESTING.md), [raw log](tests/security/backend-verification.txt) | VERIFIED |
 
 Environment: 8 GiB Mac, Colima 4 CPUs/6 GiB, single-node Kind, one DB/broker and
 controlled quotes. Five-second submission windows are laptop experiments, not
@@ -239,6 +239,9 @@ Flyway applies migrations at startup; Hibernate validates the resulting schema.
 ## API Documentation
 
 Swagger: `/swagger-ui.html`. Envelope: `{success,message,data,timestamp}`.
+Swagger/OpenAPI and `/actuator/**` require ADMIN authentication on this branch.
+Minimal GET `/livez` and `/readyz` probes remain public; deployment configuration
+was updated with the backend. The hosted demo may still run the earlier policy.
 
 | Method | Endpoint | Purpose |
 | --- | --- | --- |

@@ -66,6 +66,44 @@ release, migrate to a supported Boot/Spring line and revalidate Jackson, SpringD
 JPA, security, Kafka, migrations and all frontend flows, or review licensed vendor
 patch access. That is a separate cross-framework change, not a safe one-line fix.
 
+## November 6 Application-Layer Hardening
+
+`SecurityStorageUtils.resolveUploadFile` resolves names beneath the fixed
+`/tmp/ledgerone_uploads` directory. It removes standard double-dot sequences,
+accepts only bounded ASCII basenames, calls `File.getCanonicalPath()` on base and
+target, and compares canonical Path components rather than a naive string prefix.
+Invalid names and canonical symlink breakouts throw `SecurityException`.
+No upload/local-file routes or services exist in the audited backend, so none
+could be refactored to call it. This is a guard for a future file-handling feature,
+not a claim that LedgerOne already supports uploads.
+
+Canonical validation alone does not eliminate filesystem TOCTOU races. A future
+upload feature must use a private service-owned base, server-generated unique
+storage IDs, race-safe/no-follow file operations, size/type limits and explicit
+overwrite rules. Removing dots can collapse distinct original names, so sanitized
+names alone must not be used as unique storage identifiers.
+
+`SecurityConfig` now uses ordered, case-sensitive `AntPathRequestMatcher` rules.
+All Actuator paths, admin namespaces, Swagger and OpenAPI require ADMIN. Existing
+auth operations and corresponding reserved v1 auth paths are public only for POST;
+trading namespaces require authentication. The permissive global OPTIONS rule was
+removed; the configured CORS filter still handles allowed preflights. Direct JSON
+401/403 responses avoid a container error redispatch changing authorization status.
+The requested Ant matcher is deprecated upstream; a future Spring 7 migration must
+also migrate this matcher rather than assume the class remains available.
+
+The actual application routes remain `/api/auth` and `/api/orders`; v1 URL rules
+do not create new controllers. All Actuator health URLs require ADMIN, so Spring's
+additional minimal GET `/livez` and `/readyz` probes are enabled and Render,
+Kubernetes and CI probe configuration was updated together.
+
+The full build passed 106 test cases (92 unit/web-slice including parameterized
+invocations, 14 real PostgreSQL/server cases), with zero failures/errors/skips.
+[Raw run](../tests/security/backend-verification.txt). These are defense-in-depth
+changes, **not patches for CVE-2026-47884 or CVE-2026-47890**: they do not upgrade
+the affected Spring library or address SSE view-fragment rendering. The existing
+scanner gate and remaining framework-upgrade requirement are unchanged.
+
 ## Other Application Limitations
 
 LocalStorage access/refresh tokens are exposed to same-origin XSS; prefer a reviewed

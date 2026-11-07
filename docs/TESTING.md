@@ -2,6 +2,20 @@
 
 ## Recorded Result
 
+November 6 application-layer security hardening passed **92 unit/web-slice cases
+and 14 PostgreSQL/embedded-server integration cases**, 106 total, with zero
+failures/errors/skips. Counts include parameterized input/route invocations, not
+106 independent services. [Raw verification log](../tests/security/backend-verification.txt).
+Run `cd backend && ./mvnw -Pintegration verify` with Docker available.
+
+`SecurityStorageUtilsTest` covers valid names, double-dot sanitization, malformed
+and encoded paths, absolute/Windows-style paths, symlink escape and sibling-prefix
+escape. `SecurityConfigTest` uses isolated stub handlers to test the real filter
+chain without adding those routes to the application. `TradingPostgresIT` also
+starts an actual HTTP server to verify JWT login, ADMIN-only Actuator access and
+minimal public health probes. Existing auth/trading/concurrency tests still pass.
+These tests do not remove the two Spring MVC dependency advisories.
+
 The November 5 audit run passed **28 unit tests and 11 PostgreSQL integration tests**:
 39 total, 0 failures, 0 errors, 0 skipped. This exceeds the original 18-test resume
 claim; it does not mean every test is a distributed-system integration test.
@@ -149,7 +163,7 @@ docker build -t ledgerone-audit:local backend
 docker build --build-arg VITE_QUEUED_ORDERS=true -t ledgerone-audit-frontend:local frontend
 docker compose -p ledgerone-audit-compose -f docker-compose.yml -f docker-compose.queue.yml \
   -f tests/performance/compose.audit.yml up -d --no-build --scale worker=2 backend worker frontend
-# Wait for :18093/actuator/health/readiness, then:
+# Wait for :18093/readyz, then:
 LEDGERONE_BENCH_URL=http://127.0.0.1:18093 ORDERS_PER_ACCOUNT=5 node benchmarks/queued-orders.mjs
 docker compose -p ledgerone-audit-compose -f docker-compose.yml -f docker-compose.queue.yml \
   -f tests/performance/compose.audit.yml down

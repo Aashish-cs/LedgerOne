@@ -11,7 +11,13 @@ import com.ledgerone.dto.TradingDtos;
 import com.ledgerone.entity.*;
 import com.ledgerone.repository.*;
 import com.ledgerone.service.*;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import java.math.BigDecimal;
+import java.net.URI;
+import java.net.http.HttpClient;
+import java.net.http.HttpRequest;
+import java.net.http.HttpResponse;
+import java.time.Duration;
 import java.util.List;
 import java.util.UUID;
 import java.util.concurrent.*;
@@ -21,6 +27,7 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.boot.test.web.server.LocalServerPort;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.test.context.DynamicPropertyRegistry;
 import org.springframework.test.context.DynamicPropertySource;
@@ -32,7 +39,8 @@ import org.testcontainers.junit.jupiter.Container;
 import org.testcontainers.junit.jupiter.Testcontainers;
 
 @Testcontainers
-@SpringBootTest(properties = {"ledgerone.market.simulator-enabled=false", "ledgerone.market.quotes.enabled=false"})
+@SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT,
+        properties = {"ledgerone.market.simulator-enabled=false", "ledgerone.market.quotes.enabled=false"})
 @AutoConfigureMockMvc
 class TradingPostgresIT {
     @Container static final PostgreSQLContainer<?> DB = new PostgreSQLContainer<>("postgres:16-alpine");
@@ -49,6 +57,8 @@ class TradingPostgresIT {
     @Autowired JdbcTemplate sql;
     @Autowired TransactionTemplate transaction;
     @Autowired MockMvc mvc;
+    @Autowired ObjectMapper json;
+    @LocalServerPort int port;
     @MockitoBean RiskService risk;
     UserAccount user;
     UUID account;
@@ -142,5 +152,40 @@ class TradingPostgresIT {
         assertThat(list).hasSize(1);
         assertThatThrownBy(() -> auth.register(new AuthDtos.RegisterRequest(user.getEmail(), "Test12345!", "Duplicate"), "local"))
                 .isInstanceOf(com.ledgerone.exception.ConflictException.class);
+    }
+
+    HttpResponse<String> http(String method, String path, String token, String body) throws Exception {
+        var request = HttpRequest.newBuilder(URI.create("http://127.0.0.1:" + port + path))
+                .timeout(Duration.ofSeconds(10));
+        if (token != null) request.header("Authorization", "Bearer " + token);
+        if (body != null) request.header("Content-Type", "application/json");
+        request.method(method, body == null ? HttpRequest.BodyPublishers.noBody() : HttpRequest.BodyPublishers.ofString(body));
+        try (var client = HttpClient.newHttpClient()) {
+            return client.send(request.build(), HttpResponse.BodyHandlers.ofString());
+        }
+    }
+
+    @Test void actualServletRequiresAdminForActuator() throws Exception {
+        assertThat(http("GET", "/actuator/health", null, null).statusCode()).isEqualTo(401);
+        assertThat(http("GET", "/actuator/health", session.accessToken(), null).statusCode()).isEqualTo(403);
+        sql.update("insert into user_roles(user_id,role_id) select ?,id from roles where name='ADMIN'", user.getId());
+        assertThat(http("GET", "/actuator/health", session.accessToken(), null).statusCode()).isEqualTo(200);
+    }
+
+    @Test void actualHealthProbesRemainPublicWithoutDiagnosticDetails() throws Exception {
+        for (String path : List.of("/livez", "/readyz")) {
+            var response = http("GET", path, null, null);
+            assertThat(response.statusCode()).isEqualTo(200);
+            assertThat(json.readTree(response.body()).get("status").asText()).isEqualTo("UP");
+            assertThat(json.readTree(response.body()).has("components")).isFalse();
+        }
+    }
+
+    @Test void actualLoginAndAuthenticatedAccountRequestsStillWork() throws Exception {
+        var response = http("POST", "/api/auth/login", null,
+                json.writeValueAsString(new AuthDtos.LoginRequest(user.getEmail(), "Test12345!")));
+        assertThat(response.statusCode()).isEqualTo(200);
+        String access = json.readTree(response.body()).get("data").get("accessToken").asText();
+        assertThat(http("GET", "/api/account/summary", access, null).statusCode()).isEqualTo(200);
     }
 }

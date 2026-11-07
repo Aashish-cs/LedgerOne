@@ -57,7 +57,7 @@ jobs:
       - name: Start isolated stack
         run: docker compose -p ledgerone-queue -f docker-compose.yml -f docker-compose.queue.yml up -d --build --scale worker=2 backend worker
       - name: Wait for the API
-        run: curl --fail --silent --show-error --retry 45 --retry-all-errors --retry-delay 2 http://127.0.0.1:18080/actuator/health/readiness
+        run: curl --fail --silent --show-error --retry 45 --retry-all-errors --retry-delay 2 http://127.0.0.1:18080/readyz
       - name: Verify persisted fills and replay safety
         run: node benchmarks/queued-orders.mjs
         env:
